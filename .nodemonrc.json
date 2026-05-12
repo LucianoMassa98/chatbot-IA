@@ -1,0 +1,12 @@
+{
+  "watch": ["src"],
+  "ext": "js",
+  "ignore": ["node_modules", "logs"],
+  "exec": "node",
+  "script": "src/server.js",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000,
+  "quiet": false
+}
