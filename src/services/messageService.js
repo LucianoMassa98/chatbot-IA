@@ -28,11 +28,11 @@ class MessageService {
 
       // 3. Save incoming message
       await Message.create({
-        conversation_id: conversation.id,
+        conversationId: conversation.id,
         direction: 'in',
         content: text,
-        message_type: messageType,
-        external_id: externalId,
+        messageType: messageType,
+        externalId: externalId,
         metadata,
       });
 
@@ -42,24 +42,39 @@ class MessageService {
       // 5. Determine response
       const response = await this.generateResponse(user, text);
 
-      // 6. Save outgoing message
-      const outgoingMessage = await Message.create({
-        conversation_id: conversation.id,
-        direction: 'out',
-        content: response.text,
-        message_type: 'text',
-        metadata: response.metadata || {},
-      });
+      // 6. Send message to user (which also saves it to the database)
+      const additionalParams = {};
+      if (channel === 'whatsapp') {
+        const env = require('../config/env');
+        additionalParams.phoneNumberId = (metadata && metadata.phoneNumberId) || env.META_PHONE_NUMBER_ID;
+      }
 
-      logger.info(`Response generated for user ${userId}`);
+      let outgoingMessageId = null;
+      try {
+        const sendResult = await this.sendMessage(user, response.text, additionalParams);
+        outgoingMessageId = sendResult.messages && sendResult.messages[0] ? sendResult.messages[0].id : null;
+        logger.info(`Response sent to user ${userId} on ${channel}`);
+      } catch (sendError) {
+        logger.error(`Failed to send message via Meta API: ${sendError.message}`);
+        // Fallback: save message locally so conversation history remains intact
+        const outgoingMessage = await Message.create({
+          conversationId: conversation.id,
+          direction: 'out',
+          content: response.text,
+          messageType: 'text',
+          metadata: { ...(response.metadata || {}), error: sendError.message },
+        });
+        outgoingMessageId = outgoingMessage.id;
+      }
 
       return {
         userId: user.id,
         channel: user.channel,
         contact: user.contact,
         response: response.text,
-        messageId: outgoingMessage.id,
+        messageId: outgoingMessageId,
       };
+
     } catch (error) {
       logger.error(`Failed to process incoming message: ${error.message}`);
       throw error;
@@ -105,14 +120,14 @@ class MessageService {
     try {
       let conversation = await Conversation.findOne({
         where: {
-          user_id: userId,
+          userId: userId,
           status: 'active',
         },
       });
 
       if (!conversation) {
         conversation = await Conversation.create({
-          user_id: userId,
+          userId: userId,
           status: 'active',
           metadata: {
             startedAt: new Date().toISOString(),
@@ -254,18 +269,18 @@ class MessageService {
       // Save sent message
       const conversation = await Conversation.findOne({
         where: {
-          user_id: user.id,
+          userId: user.id,
           status: 'active',
         },
       });
 
       if (conversation) {
         await Message.create({
-          conversation_id: conversation.id,
+          conversationId: conversation.id,
           direction: 'out',
           content: messageText,
-          message_type: 'text',
-          external_id: result.messages ? result.messages[0].id : null,
+          messageType: 'text',
+          externalId: result.messages ? result.messages[0].id : null,
         });
       }
 
@@ -282,7 +297,7 @@ class MessageService {
   async getConversationHistory(userId, limit = 50) {
     try {
       const conversation = await Conversation.findOne({
-        where: { user_id: userId },
+        where: { userId: userId },
         include: {
           association: 'messages',
           limit,
@@ -308,7 +323,7 @@ class MessageService {
     try {
       const conversation = await Conversation.findOne({
         where: {
-          user_id: userId,
+          userId: userId,
           status: 'active',
         },
       });

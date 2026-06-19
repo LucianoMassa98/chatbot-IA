@@ -18,11 +18,11 @@ class SessionService {
 
       if (!session) {
         session = await Session.create({
-          user_id: userId,
-          current_flow: 'idle',
-          flow_step: 0,
+          userId: userId,
+          currentFlow: 'idle',
+          flowStep: 0,
           context: {},
-          expires_at: new Date(Date.now() + env.SESSION_TIMEOUT * 1000),
+          expiresAt: new Date(Date.now() + env.SESSION_TIMEOUT * 1000),
         });
       }
 
@@ -47,13 +47,13 @@ class SessionService {
       }
 
       await session.update({
-        current_flow: flowName,
-        flow_step: flowStep,
+        currentFlow: flowName,
+        flowStep: flowStep,
         context: {
           ...session.context,
           ...context,
         },
-        expires_at: new Date(Date.now() + env.SESSION_TIMEOUT * 1000),
+        expiresAt: new Date(Date.now() + env.SESSION_TIMEOUT * 1000),
       });
 
       logger.info(`Session updated for user ${userId}`, {
@@ -83,8 +83,8 @@ class SessionService {
 
       return {
         userId,
-        currentFlow: session.current_flow,
-        flowStep: session.flow_step,
+        currentFlow: session.currentFlow,
+        flowStep: session.flowStep,
         context: session.context,
       };
     } catch (error) {
@@ -104,8 +104,8 @@ class SessionService {
 
       if (session) {
         await session.update({
-          current_flow: 'idle',
-          flow_step: 0,
+          currentFlow: 'idle',
+          flowStep: 0,
           context: {},
         });
       }

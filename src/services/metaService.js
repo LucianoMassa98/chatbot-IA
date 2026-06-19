@@ -9,8 +9,9 @@ const AppError = require('../utils/AppError');
 class MetaService {
   constructor() {
     this.accessToken = env.META_ACCESS_TOKEN;
-    this.baseURL = 'https://graph.instagram.com/v18.0';
+    this.baseURL = 'https://graph.facebook.com/v18.0';
   }
+
 
   /**
    * Send WhatsApp message

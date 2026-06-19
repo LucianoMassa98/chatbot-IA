@@ -14,6 +14,8 @@ module.exports = {
   // Meta Configuration
   META_VERIFY_TOKEN: process.env.META_VERIFY_TOKEN || 'verify_token_secret',
   META_ACCESS_TOKEN: process.env.META_ACCESS_TOKEN || '',
+  META_PHONE_NUMBER_ID: process.env.META_PHONE_NUMBER_ID || '',
+
   
   // Session Configuration
   SESSION_TIMEOUT: parseInt(process.env.SESSION_TIMEOUT || '3600', 10),

@@ -29,6 +29,12 @@ const normalizeMessage = (entry, messagingProduct) => {
       if (entry.contacts) {
         message.metadata.contactName = entry.contacts[0].profile.name;
       }
+
+      // Add phone number ID if available
+      if (entry.metadata && entry.metadata.phone_number_id) {
+        message.metadata.phoneNumberId = entry.metadata.phone_number_id;
+      }
+
     } else if (messagingProduct === 'instagram') {
       message.channel = 'instagram';
       message.userId = entry.messaging[0].sender.id;
