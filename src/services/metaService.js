@@ -42,7 +42,13 @@ class MetaService {
 
       return response.data;
     } catch (error) {
-      logger.error(`Failed to send WhatsApp message: ${error.message}`);
+      const detail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      logger.error(`Failed to send WhatsApp message: ${error.message}`, {
+        status: error.response?.status,
+        detail,
+        phoneNumberId,
+        recipientPhone,
+      });
       throw new AppError('Failed to send WhatsApp message', 500);
     }
   }
