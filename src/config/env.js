@@ -24,10 +24,11 @@ module.exports = {
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   LOG_FILE: process.env.LOG_FILE || './logs/app.log',
   
-  // AI Configuration
+  // AI Configuration (Google Gemini)
   AI_ENABLED: process.env.AI_ENABLED === 'true',
   AI_API_KEY: process.env.AI_API_KEY || '',
-  AI_API_URL: process.env.AI_API_URL || '',
+  AI_MODEL: process.env.AI_MODEL || 'gemini-2.0-flash',
+  AI_SYSTEM_PROMPT: process.env.AI_SYSTEM_PROMPT || '',
   
   // Validation
   isDevelopment: process.env.NODE_ENV === 'development',
