@@ -15,6 +15,24 @@ class MetaService {
     logger.info(`MetaService initialized. Token suffix: ${tokenSuffix}`);
   }
 
+  /**
+   * Normalize Argentine mobile phone numbers.
+   * WhatsApp webhook sends: 5492644758561  (54 + 9 + area + local, 13 digits)
+   * Meta sandbox expects:  54264154758561 (54 + area + 15 + local, 14 digits)
+   * Both represent the same number; the 9↔15 swap is Argentina-specific.
+   */
+  normalizePhone(phone) {
+    const str = String(phone).replace(/\D/g, '');
+    // Argentina mobile format: 549 + 10 digits = 13 total
+    if (/^549\d{10}$/.test(str)) {
+      const withoutNine = '54' + str.slice(3); // remove the '9': 542644758561 (12 digits)
+      const localStart = withoutNine.length - 7; // last 7 digits = local number
+      const normalized = withoutNine.slice(0, localStart) + '15' + withoutNine.slice(localStart);
+      logger.info(`Phone normalized (AR): ${str} → ${normalized}`);
+      return normalized;
+    }
+    return str;
+  }
 
   /**
    * Send WhatsApp message
@@ -22,10 +40,11 @@ class MetaService {
   async sendWhatsAppMessage(phoneNumberId, recipientPhone, message) {
     try {
       const url = `${this.baseURL}/${phoneNumberId}/messages`;
+      const normalizedPhone = this.normalizePhone(recipientPhone);
 
       const payload = {
         messaging_product: 'whatsapp',
-        to: recipientPhone,
+        to: normalizedPhone,
         type: 'text',
         text: {
           body: message,
