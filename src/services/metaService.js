@@ -9,7 +9,7 @@ const AppError = require('../utils/AppError');
 class MetaService {
   constructor() {
     this.accessToken = env.META_ACCESS_TOKEN;
-    this.baseURL = 'https://graph.facebook.com/v22.0';
+    this.baseURL = 'https://graph.facebook.com/v25.0';
     // Log last 10 chars of token to verify correct token is loaded (safe to log)
     const tokenSuffix = this.accessToken ? `...${this.accessToken.slice(-10)}` : 'NOT SET';
     logger.info(`MetaService initialized. Token suffix: ${tokenSuffix}`);
