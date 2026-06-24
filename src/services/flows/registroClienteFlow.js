@@ -17,27 +17,23 @@ async function sendRegistroClienteFlow(phoneNumberId, recipientPhone) {
   const normalizedPhone = metaService.normalizePhone(recipientPhone);
   const url = `${metaService.baseURL}/${phoneNumberId}/messages`;
 
+  // flow_token must be unique per message and must not contain special chars
+  const flowToken = `reg${Date.now()}`;
+
   const payload = {
     messaging_product: 'whatsapp',
     to: normalizedPhone,
     type: 'interactive',
     interactive: {
       type: 'flow',
-      header: {
-        type: 'text',
-        text: '¡Bienvenido! 👋',
-      },
       body: {
         text: 'Para brindarte una mejor atención, necesitamos registrar tus datos. Por favor completá el formulario a continuación.',
-      },
-      footer: {
-        text: 'Tus datos están seguros con nosotros.',
       },
       action: {
         name: 'flow',
         parameters: {
           flow_message_version: '3',
-          flow_token: `registro_${normalizedPhone}_${Date.now()}`,
+          flow_token: flowToken,
           flow_id: REGISTRO_CLIENTE_FLOW_ID,
           flow_cta: 'Registrarme',
           flow_action: 'navigate',
@@ -50,20 +46,35 @@ async function sendRegistroClienteFlow(phoneNumberId, recipientPhone) {
   };
 
   const axios = require('axios');
-  const response = await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${metaService.accessToken}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${metaService.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  logger.info(`WhatsApp Flow registro_cliente enviado a ${recipientPhone}`, {
-    flowId: REGISTRO_CLIENTE_FLOW_ID,
-    messageId: response.data?.messages?.[0]?.id,
-  });
+    logger.info(`WhatsApp Flow registro_cliente enviado a ${recipientPhone}`, {
+      flowId: REGISTRO_CLIENTE_FLOW_ID,
+      messageId: response.data?.messages?.[0]?.id,
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    // Log full API error detail for diagnosis
+    const apiError = error.response?.data
+      ? JSON.stringify(error.response.data)
+      : error.message;
+    logger.error(`Meta API error sending registro_cliente flow: ${apiError}`, {
+      status: error.response?.status,
+      phoneNumberId,
+      recipientPhone: normalizedPhone,
+      flowId: REGISTRO_CLIENTE_FLOW_ID,
+    });
+    throw error;
+  }
 }
+
 
 /**
  * Registro Cliente Flow Handler

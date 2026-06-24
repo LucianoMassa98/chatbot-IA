@@ -108,6 +108,24 @@ const initializeDatabase = async () => {
     await models.sequelize.authenticate();
     logger.info('Database connection established successfully');
 
+    // Ensure the ENUM type includes 'registro_cliente' (idempotent)
+    await models.sequelize.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_enum
+          WHERE enumlabel = 'registro_cliente'
+            AND enumtypid = (
+              SELECT oid FROM pg_type WHERE typname = 'enum_sessions_current_flow'
+            )
+        ) THEN
+          ALTER TYPE "enum_sessions_current_flow" ADD VALUE 'registro_cliente';
+        END IF;
+      END
+      $$;
+    `);
+    logger.info('ENUM enum_sessions_current_flow verified/updated');
+
     // Sync models (use force: true only in development)
     if (env.isDevelopment) {
       await models.sequelize.sync();
