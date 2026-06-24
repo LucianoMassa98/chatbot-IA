@@ -6,6 +6,7 @@ const flowService = require('./flowService');
 const aiService = require('./aiService');
 const metaService = require('./metaService');
 const { normalizeMessage } = require('../utils/messageNormalizer');
+const registroClienteFlow = require('./flows/registroClienteFlow');
 
 /**
  * Message Service - Main orchestrator for message handling and response generation
@@ -20,8 +21,8 @@ class MessageService {
 
       logger.info(`Processing message from user ${userId}`, { channel, messageType });
 
-      // 1. Get or create user
-      const user = await this.getOrCreateUser(userId, channel, metadata);
+      // 1. Get or create user (isNewUser indicates first-time contact)
+      const { user, isNewUser } = await this.getOrCreateUser(userId, channel, metadata);
 
       // 2. Get or create conversation
       const conversation = await this.getOrCreateConversation(user.id);
@@ -39,7 +40,38 @@ class MessageService {
       // 4. Get or create session
       await sessionService.getOrCreateSession(user.id);
 
-      // 5. Determine response
+      // 5. If new user on WhatsApp, send the registro_cliente Flow natively
+      if (isNewUser && channel === 'whatsapp') {
+        logger.info(`New WhatsApp user detected (${userId}). Sending registro_cliente flow.`);
+        const env = require('../config/env');
+        const phoneNumberId = (metadata && metadata.phoneNumberId) || env.META_PHONE_NUMBER_ID;
+        try {
+          const flowResult = await registroClienteFlow.sendToNewUser(phoneNumberId, userId);
+          // Save the outgoing flow message to conversation history
+          await Message.create({
+            conversationId: conversation.id,
+            direction: 'out',
+            content: '[WhatsApp Flow: registro_cliente enviado]',
+            messageType: 'interactive',
+            externalId: flowResult?.messages?.[0]?.id || null,
+            metadata: { flowId: registroClienteFlow.flowId, source: 'registro_cliente' },
+          });
+          logger.info(`registro_cliente flow sent successfully to new user ${userId}`);
+        } catch (flowError) {
+          // Fallback: if the native Flow fails, send the text-based welcome step
+          logger.warn(`Failed to send native registro_cliente flow to ${userId}: ${flowError.message}. Falling back to text.`);
+          await sessionService.updateFlow(user.id, 'registro_cliente', 0, { isNewUser: true });
+        }
+        return {
+          userId: user.id,
+          channel: user.channel,
+          contact: user.contact,
+          response: 'registro_cliente flow sent',
+          messageId: null,
+        };
+      }
+
+      // 6. Determine response (existing users)
       const response = await this.generateResponse(user, text);
 
       // 6. Send message to user (which also saves it to the database)
@@ -93,6 +125,8 @@ class MessageService {
         },
       });
 
+      let isNewUser = false;
+
       if (!user) {
         user = await User.create({
           contact: userId,
@@ -103,10 +137,11 @@ class MessageService {
           },
         });
 
+        isNewUser = true;
         logger.info(`New user created: ${userId} on ${channel}`);
       }
 
-      return user;
+      return { user, isNewUser };
     } catch (error) {
       logger.error(`Failed to get/create user: ${error.message}`);
       throw new AppError('Failed to get user', 500);

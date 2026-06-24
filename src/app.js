@@ -14,6 +14,7 @@ const webhookRoutes = require('./routes/webhookRoutes');
 // Import flows
 const salesFlow = require('./services/flows/salesFlow');
 const supportFlow = require('./services/flows/supportFlow');
+const registroClienteFlow = require('./services/flows/registroClienteFlow');
 
 /**
  * Initialize Express app
@@ -95,6 +96,7 @@ app.use(errorHandler);
 const initializeFlows = () => {
   flowService.registerFlow(salesFlow.name, salesFlow);
   flowService.registerFlow(supportFlow.name, supportFlow);
+  flowService.registerFlow(registroClienteFlow.name, registroClienteFlow);
   logger.info('Conversation flows initialized');
 };
 
