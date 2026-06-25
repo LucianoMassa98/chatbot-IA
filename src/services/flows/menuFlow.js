@@ -38,7 +38,7 @@ const menuFlow = {
       const msg = userMessage.toLowerCase().trim();
 
       // Coincidencia por texto o por ID de botón interactivo
-      if (msg.includes('1') || msg.includes('comprar') || msg.includes('producto')) {
+      if (msg.includes('1') || msg.includes('comprar') || msg.includes('producto') || msg.includes('compra')) {
         return {
           response: null,
           nextStep: null,
@@ -88,7 +88,7 @@ const menuFlow = {
         };
       }
 
-      if (msg.includes('6') || msg.includes('operador') || msg.includes('humano') || msg.includes('persona')) {
+      if (msg.includes('6') || msg.includes('operador') || msg.includes('humano') || msg.includes('persona') || msg.includes('support')) {
         return {
           response: null,
           nextStep: null,
@@ -126,15 +126,33 @@ function buildMainMenuText() {
 
 function buildMainMenuInteractive() {
   return {
-    type: 'button',
-    body: { text: '🐔 *Yemas del Sol* — ¿En qué puedo ayudarte?' },
-    action: {
-      buttons: [
-        { type: 'reply', reply: { id: 'compra', title: '🛒 Comprar maples' } },
-        { type: 'reply', reply: { id: 'suscripcion', title: '📦 Suscripciones' } },
-        { type: 'reply', reply: { id: 'pedidos', title: '📋 Mis pedidos' } },
-      ],
+    type: 'list',
+    header: {
+      type: 'text',
+      text: '🐔 Yemas del Sol'
     },
+    body: {
+      text: '¿En qué puedo ayudarte hoy? Seleccioná una opción del menú:'
+    },
+    footer: {
+      text: 'Yemas del Sol AI'
+    },
+    action: {
+      button: 'Ver Opciones',
+      sections: [
+        {
+          title: 'Menú Principal',
+          rows: [
+            { id: 'compra', title: '🛒 Comprar maples', description: 'Comprar maples de huevos frescos' },
+            { id: 'suscripcion', title: '📦 Suscripciones', description: 'Ver planes de suscripción quincenales' },
+            { id: 'pedidos', title: '📋 Mis pedidos', description: 'Consultar el estado de tus pedidos' },
+            { id: 'cambiar_direccion', title: '📍 Cambiar dirección', description: 'Modificar tu dirección de entrega' },
+            { id: 'reprogramar', title: '⏰ Reprogramar entrega', description: 'Cambiar fecha u hora de entrega' },
+            { id: 'support', title: '💬 Hablar con operador', description: 'Contactar con atención al cliente' }
+          ]
+        }
+      ]
+    }
   };
 }
 

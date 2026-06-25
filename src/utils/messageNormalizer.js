@@ -20,9 +20,23 @@ const normalizeMessage = (entry, messagingProduct) => {
 
       if (entry.messages[0].type === 'text') {
         message.text = entry.messages[0].text.body;
+      } else if (entry.messages[0].type === 'interactive') {
+        const interactive = entry.messages[0].interactive;
+        if (interactive) {
+          if (interactive.type === 'button_reply' && interactive.button_reply) {
+            message.text = interactive.button_reply.id || interactive.button_reply.title;
+          } else if (interactive.type === 'list_reply' && interactive.list_reply) {
+            message.text = interactive.list_reply.id || interactive.list_reply.title;
+          } else if (interactive.type === 'nfm_reply' && interactive.nfm_reply) {
+            message.text = interactive.nfm_reply.response_json || JSON.stringify(interactive.nfm_reply);
+          }
+        }
+        message.messageType = 'text'; // Map to text to prevent DB enum violation
       } else {
-        message.messageType = entry.messages[0].type;
-        message.text = `[${entry.messages[0].type} message received]`;
+        const allowedTypes = ['text', 'image', 'document', 'audio', 'video'];
+        const receivedType = entry.messages[0].type;
+        message.messageType = allowedTypes.includes(receivedType) ? receivedType : 'text';
+        message.text = `[${receivedType} message received]`;
       }
 
       // Add contact name if available
