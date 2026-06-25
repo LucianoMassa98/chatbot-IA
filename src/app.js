@@ -10,11 +10,16 @@ const models = require('./models');
 
 // Import routes
 const webhookRoutes = require('./routes/webhookRoutes');
+const crmRoutes = require('./routes/crmRoutes');
+const mercadoPagoRoutes = require('./routes/mercadoPagoRoutes');
 
 // Import flows
 const salesFlow = require('./services/flows/salesFlow');
 const supportFlow = require('./services/flows/supportFlow');
 const registroClienteFlow = require('./services/flows/registroClienteFlow');
+const menuFlow = require('./services/flows/menuFlow');
+const subscriptionFlow = require('./services/flows/subscriptionFlow');
+const pedidoFlow = require('./services/flows/pedidoFlow');
 
 /**
  * Initialize Express app
@@ -26,7 +31,10 @@ const app = express();
  */
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: [
+    env.CRM_FRONTEND_URL || 'http://localhost:5173',
+    process.env.CORS_ORIGIN || '*',
+  ],
   credentials: true,
 }));
 
@@ -60,6 +68,8 @@ app.get('/health', (req, res) => {
  * API Routes
  */
 app.use('/webhook', webhookRoutes);
+app.use('/webhook', mercadoPagoRoutes);
+app.use('/api', crmRoutes);
 
 /**
  * Root endpoint
@@ -94,9 +104,14 @@ app.use(errorHandler);
  * Initialize flows
  */
 const initializeFlows = () => {
+  // Legacy / backward compat
   flowService.registerFlow(salesFlow.name, salesFlow);
   flowService.registerFlow(supportFlow.name, supportFlow);
   flowService.registerFlow(registroClienteFlow.name, registroClienteFlow);
+  // Yemas del Sol flows
+  flowService.registerFlow(menuFlow.name, menuFlow);
+  flowService.registerFlow(subscriptionFlow.name, subscriptionFlow);
+  flowService.registerFlow(pedidoFlow.name, pedidoFlow);
   logger.info('Conversation flows initialized');
 };
 
@@ -108,22 +123,25 @@ const initializeDatabase = async () => {
     await models.sequelize.authenticate();
     logger.info('Database connection established successfully');
 
-    // Ensure the ENUM type includes 'registro_cliente' (idempotent)
-    await models.sequelize.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_enum
-          WHERE enumlabel = 'registro_cliente'
-            AND enumtypid = (
-              SELECT oid FROM pg_type WHERE typname = 'enum_sessions_current_flow'
-            )
-        ) THEN
-          ALTER TYPE "enum_sessions_current_flow" ADD VALUE 'registro_cliente';
-        END IF;
-      END
-      $$;
-    `);
+    // Ensure the ENUM type includes all Yemas del Sol flow values
+    const yemaFlows = ['registro_cliente', 'menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar'];
+    for (const val of yemaFlows) {
+      await models.sequelize.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumlabel = '${val}'
+              AND enumtypid = (
+                SELECT oid FROM pg_type WHERE typname = 'enum_sessions_current_flow'
+              )
+          ) THEN
+            ALTER TYPE "enum_sessions_current_flow" ADD VALUE '${val}';
+          END IF;
+        END
+        $$;
+      `);
+    }
     logger.info('ENUM enum_sessions_current_flow verified/updated');
 
     // Sync models (use force: true only in development)

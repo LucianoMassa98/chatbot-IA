@@ -15,9 +15,16 @@ module.exports = (sequelize) => {
         comment: 'Phone number, email, or IG handle depending on channel',
       },
       channel: {
-        type: DataTypes.ENUM('whatsapp', 'instagram', 'messenger'),
+        type: DataTypes.ENUM('whatsapp'),
         allowNull: false,
-        comment: 'Channel through which user is communicating',
+        defaultValue: 'whatsapp',
+        comment: 'Communication channel — WhatsApp only for Yemas del Sol',
+      },
+      role: {
+        type: DataTypes.ENUM('cliente', 'operador', 'administrador'),
+        allowNull: false,
+        defaultValue: 'cliente',
+        comment: 'User role in the system',
       },
       firstName: {
         type: DataTypes.STRING,
@@ -26,6 +33,23 @@ module.exports = (sequelize) => {
       lastName: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      address: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: 'Delivery address',
+      },
+      location: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: null,
+        comment: 'GPS coordinates and map URL: { lat, lng, googleMapsUrl }',
+      },
+      deliverySchedule: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: null,
+        comment: 'Preferred delivery times: { morning, afternoon, evening }',
       },
       metadata: {
         type: DataTypes.JSONB,
@@ -56,6 +80,11 @@ module.exports = (sequelize) => {
     User.hasOne(models.Session, {
       foreignKey: 'user_id',
       as: 'session',
+      onDelete: 'CASCADE',
+    });
+    User.hasMany(models.Order, {
+      foreignKey: 'user_id',
+      as: 'orders',
       onDelete: 'CASCADE',
     });
   };

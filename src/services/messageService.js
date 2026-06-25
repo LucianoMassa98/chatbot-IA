@@ -8,6 +8,9 @@ const metaService = require('./metaService');
 const { normalizeMessage } = require('../utils/messageNormalizer');
 const registroClienteFlow = require('./flows/registroClienteFlow');
 
+// Yemas del Sol flows (registered separately in app.js, referenced here for redirect support)
+const YEMAS_FLOWS = ['menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'support'];
+
 /**
  * Message Service - Main orchestrator for message handling and response generation
  */
@@ -190,6 +193,9 @@ class MessageService {
         throw new AppError('Session not found', 404);
       }
 
+      // Inject userId into context so flows can query user-specific data
+      sessionContext.userId = user.id;
+
       // Check if user should continue in current flow
       if (sessionContext.currentFlow !== 'idle') {
         const flowResult = await this.executeCurrentFlow(
@@ -200,48 +206,46 @@ class MessageService {
         );
 
         if (flowResult) {
+          // Handle flow redirect (e.g. menu redirects to compra)
+          if (flowResult.redirectFlow) {
+            const targetFlow = flowResult.redirectFlow;
+            await sessionService.updateFlow(user.id, targetFlow, 0, {});
+            const newContext = await sessionService.getSessionContext(user.id);
+            newContext.userId = user.id;
+            return this.executeCurrentFlow(user.id, targetFlow, userMessage, newContext);
+          }
+          // Handle waiting for operator
+          if (flowResult.setConversationWaiting) {
+            await Conversation.update(
+              { status: 'waiting' },
+              { where: { userId: user.id, status: 'active' } },
+            );
+          }
           return flowResult;
         }
       }
 
-      // Check which flow to start
-      const shouldStartSales = await flowService.shouldStartFlow('sales', userMessage);
-      const shouldStartSupport = await flowService.shouldStartFlow('support', userMessage);
-
-      if (shouldStartSales) {
-        await sessionService.updateFlow(user.id, 'sales', 0, {});
-        return this.executeCurrentFlow(user.id, 'sales', userMessage, sessionContext);
+      // Check which Yemas del Sol flow to start
+      for (const flowName of YEMAS_FLOWS) {
+        const shouldStart = await flowService.shouldStartFlow(flowName, userMessage);
+        if (shouldStart) {
+          await sessionService.updateFlow(user.id, flowName, 0, {});
+          const newContext = await sessionService.getSessionContext(user.id);
+          newContext.userId = user.id;
+          return this.executeCurrentFlow(user.id, flowName, userMessage, newContext);
+        }
       }
 
-      if (shouldStartSupport) {
-        await sessionService.updateFlow(user.id, 'support', 0, {});
-        return this.executeCurrentFlow(user.id, 'support', userMessage, sessionContext);
-      }
+      // Default: show main menu
+      await sessionService.updateFlow(user.id, 'menu', 0, {});
+      const newContext = await sessionService.getSessionContext(user.id);
+      newContext.userId = user.id;
+      return this.executeCurrentFlow(user.id, 'menu', userMessage, newContext);
 
-      // Fallback to AI service
-      const aiResponse = await aiService.generateResponse(userMessage, sessionContext.context);
-
-      const shouldEscalate = await aiService.shouldEscalate(userMessage);
-
-      if (shouldEscalate) {
-        logger.warn(`Message escalated for user ${user.id}: ${userMessage}`);
-        await sessionService.updateFlow(user.id, 'support', 0, {
-          escalated: true,
-          originalMessage: userMessage,
-        });
-      }
-
-      return {
-        text: aiResponse,
-        metadata: {
-          source: 'ai_fallback',
-          escalated: shouldEscalate,
-        },
-      };
     } catch (error) {
       logger.error(`Failed to generate response: ${error.message}`);
       return {
-        text: 'Thank you for your message. Our team will respond shortly.',
+        text: '😔 Ocurrió un error. Por favor intentá de nuevo o escribí *MENU*.',
         metadata: { source: 'fallback_error' },
       };
     }

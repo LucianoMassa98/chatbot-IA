@@ -4,13 +4,13 @@ const env = require('../config/env');
 const AppError = require('../utils/AppError');
 
 /**
- * Meta Service - Handles communication with Meta APIs
+ * Meta Service — Handles communication with WhatsApp Business Cloud API.
+ * Instagram and Messenger are not used in Yemas del Sol.
  */
 class MetaService {
   constructor() {
     this.accessToken = env.META_ACCESS_TOKEN;
     this.baseURL = 'https://graph.facebook.com/v25.0';
-    // Log last 10 chars of token to verify correct token is loaded (safe to log)
     const tokenSuffix = this.accessToken ? `...${this.accessToken.slice(-10)}` : 'NOT SET';
     logger.info(`MetaService initialized. Token suffix: ${tokenSuffix}`);
   }
@@ -19,14 +19,12 @@ class MetaService {
    * Normalize Argentine mobile phone numbers.
    * WhatsApp webhook sends: 5492644758561  (54 + 9 + area + local, 13 digits)
    * Meta sandbox expects:  54264154758561 (54 + area + 15 + local, 14 digits)
-   * Both represent the same number; the 9↔15 swap is Argentina-specific.
    */
   normalizePhone(phone) {
     const str = String(phone).replace(/\D/g, '');
-    // Argentina mobile format: 549 + 10 digits = 13 total
     if (/^549\d{10}$/.test(str)) {
-      const withoutNine = '54' + str.slice(3); // remove the '9': 542644758561 (12 digits)
-      const localStart = withoutNine.length - 7; // last 7 digits = local number
+      const withoutNine = '54' + str.slice(3);
+      const localStart = withoutNine.length - 7;
       const normalized = withoutNine.slice(0, localStart) + '15' + withoutNine.slice(localStart);
       logger.info(`Phone normalized (AR): ${str} → ${normalized}`);
       return normalized;
@@ -35,7 +33,10 @@ class MetaService {
   }
 
   /**
-   * Send WhatsApp message
+   * Send a plain text WhatsApp message.
+   * @param {string} phoneNumberId - Business phone number ID
+   * @param {string} recipientPhone - Recipient's phone number
+   * @param {string} message - Message text (supports WhatsApp markdown)
    */
   async sendWhatsAppMessage(phoneNumberId, recipientPhone, message) {
     try {
@@ -46,9 +47,7 @@ class MetaService {
         messaging_product: 'whatsapp',
         to: normalizedPhone,
         type: 'text',
-        text: {
-          body: message,
-        },
+        text: { body: message },
       };
 
       const response = await axios.post(url, payload, {
@@ -59,7 +58,7 @@ class MetaService {
       });
 
       logger.info(`WhatsApp message sent to ${recipientPhone}`, {
-        messageId: response.data.messages[0].id,
+        messageId: response.data.messages?.[0]?.id,
       });
 
       return response.data;
@@ -76,57 +75,21 @@ class MetaService {
   }
 
   /**
-   * Send Facebook Messenger message
+   * Send an interactive button message on WhatsApp.
+   * @param {string} phoneNumberId
+   * @param {string} recipientPhone
+   * @param {object} interactive - WhatsApp interactive object (type, body, action)
    */
-  async sendMessengerMessage(recipientId, message) {
+  async sendWhatsAppInteractive(phoneNumberId, recipientPhone, interactive) {
     try {
-      const url = `${this.baseURL}/${recipientId}/messages`;
+      const url = `${this.baseURL}/${phoneNumberId}/messages`;
+      const normalizedPhone = this.normalizePhone(recipientPhone);
 
       const payload = {
-        messaging_type: 'RESPONSE',
-        recipient: {
-          id: recipientId,
-        },
-        message: {
-          text: message,
-        },
-      };
-
-      const response = await axios.post(url, payload, {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        params: {
-          access_token: this.accessToken,
-        },
-      });
-
-      logger.info(`Messenger message sent to ${recipientId}`, {
-        messageId: response.data.message_id,
-      });
-
-      return response.data;
-    } catch (error) {
-      logger.error(`Failed to send Messenger message: ${error.message}`);
-      throw new AppError('Failed to send Messenger message', 500);
-    }
-  }
-
-  /**
-   * Send Instagram DM message
-   */
-  async sendInstagramMessage(recipientId, message) {
-    try {
-      const url = `${this.baseURL}/${recipientId}/messages`;
-
-      const payload = {
-        recipient: {
-          id: recipientId,
-        },
-        message: {
-          text: message,
-        },
+        messaging_product: 'whatsapp',
+        to: normalizedPhone,
+        type: 'interactive',
+        interactive,
       };
 
       const response = await axios.post(url, payload, {
@@ -136,35 +99,32 @@ class MetaService {
         },
       });
 
-      logger.info(`Instagram message sent to ${recipientId}`, {
-        messageId: response.data.message_id,
+      logger.info(`WhatsApp interactive sent to ${recipientPhone}`, {
+        messageId: response.data.messages?.[0]?.id,
       });
 
       return response.data;
     } catch (error) {
-      logger.error(`Failed to send Instagram message: ${error.message}`);
-      throw new AppError('Failed to send Instagram message', 500);
+      const detail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      logger.error(`Failed to send WhatsApp interactive: ${error.message}`, { detail });
+      // Fallback: caller should handle and send plain text instead
+      throw new AppError('Failed to send WhatsApp interactive message', 500);
     }
   }
 
   /**
-   * Generic message sender based on channel
+   * Generic message sender — WhatsApp only.
    */
   async sendMessage(channel, recipientId, message, additionalParams = {}) {
-    switch (channel) {
-      case 'whatsapp':
-        return this.sendWhatsAppMessage(
-          additionalParams.phoneNumberId,
-          recipientId,
-          message,
-        );
-      case 'messenger':
-        return this.sendMessengerMessage(recipientId, message);
-      case 'instagram':
-        return this.sendInstagramMessage(recipientId, message);
-      default:
-        throw new AppError(`Unsupported channel: ${channel}`, 400);
+    if (channel !== 'whatsapp') {
+      logger.warn(`Channel "${channel}" is not supported. Only WhatsApp is active.`);
+      throw new AppError(`Canal no soportado: ${channel}`, 400);
     }
+    return this.sendWhatsAppMessage(
+      additionalParams.phoneNumberId || env.META_PHONE_NUMBER_ID,
+      recipientId,
+      message,
+    );
   }
 }
 
