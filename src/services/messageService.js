@@ -102,31 +102,40 @@ class MessageService {
       if (channel === 'whatsapp') {
         const env = require('../config/env');
         additionalParams.phoneNumberId = (metadata && metadata.phoneNumberId) || env.META_PHONE_NUMBER_ID;
+        if (response && response.interactive) {
+          additionalParams.interactive = response.interactive;
+        }
       }
 
       let outgoingMessageId = null;
-      try {
-        const sendResult = await this.sendMessage(user, response.text, additionalParams);
-        outgoingMessageId = sendResult.messages && sendResult.messages[0] ? sendResult.messages[0].id : null;
-        logger.info(`Response sent to user ${userId} on ${channel}`);
-      } catch (sendError) {
-        logger.error(`Failed to send message via Meta API: ${sendError.message}`);
-        // Fallback: save message locally so conversation history remains intact
-        const outgoingMessage = await Message.create({
-          conversationId: conversation.id,
-          direction: 'out',
-          content: response.text,
-          messageType: 'text',
-          metadata: { ...(response.metadata || {}), error: sendError.message },
-        });
-        outgoingMessageId = outgoingMessage.id;
+      const textToSend = response ? (response.text || response.interactive?.body?.text) : null;
+
+      if (textToSend) {
+        try {
+          const sendResult = await this.sendMessage(user, textToSend, additionalParams);
+          outgoingMessageId = sendResult.messages && sendResult.messages[0] ? sendResult.messages[0].id : null;
+          logger.info(`Response sent to user ${userId} on ${channel}`);
+        } catch (sendError) {
+          logger.error(`Failed to send message via Meta API: ${sendError.message}`);
+          // Fallback: save message locally so conversation history remains intact
+          const outgoingMessage = await Message.create({
+            conversationId: conversation.id,
+            direction: 'out',
+            content: textToSend,
+            messageType: 'text',
+            metadata: { ...((response && response.metadata) || {}), error: sendError.message },
+          });
+          outgoingMessageId = outgoingMessage.id;
+        }
+      } else {
+        logger.warn(`No response text to send to user ${userId}`);
       }
 
       return {
         userId: user.id,
         channel: user.channel,
         contact: user.contact,
-        response: response.text,
+        response: textToSend,
         messageId: outgoingMessageId,
       };
 
@@ -301,6 +310,9 @@ class MessageService {
 
       return {
         text: flowResult.response,
+        redirectFlow: flowResult.redirectFlow,
+        setConversationWaiting: flowResult.setConversationWaiting,
+        interactive: flowResult.interactive,
         metadata: {
           source: `flow_${flowName}`,
           step: currentStep,

@@ -120,8 +120,23 @@ class MetaService {
       logger.warn(`Channel "${channel}" is not supported. Only WhatsApp is active.`);
       throw new AppError(`Canal no soportado: ${channel}`, 400);
     }
+    
+    const phoneNumberId = additionalParams.phoneNumberId || env.META_PHONE_NUMBER_ID;
+
+    if (additionalParams.interactive) {
+      try {
+        return await this.sendWhatsAppInteractive(
+          phoneNumberId,
+          recipientId,
+          additionalParams.interactive,
+        );
+      } catch (interactiveError) {
+        logger.warn(`Failed to send interactive WhatsApp message, falling back to plain text: ${interactiveError.message}`);
+      }
+    }
+
     return this.sendWhatsAppMessage(
-      additionalParams.phoneNumberId || env.META_PHONE_NUMBER_ID,
+      phoneNumberId,
       recipientId,
       message,
     );
