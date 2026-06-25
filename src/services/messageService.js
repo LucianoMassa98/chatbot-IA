@@ -6,7 +6,8 @@ const flowService = require('./flowService');
 const aiService = require('./aiService');
 const metaService = require('./metaService');
 const { normalizeMessage } = require('../utils/messageNormalizer');
-const registroClienteFlow = require('./flows/registroClienteFlow');
+// registroClienteFlow native flow disabled (Meta #139000 integrity error)
+// New users receive a text welcome message and are routed to menuFlow instead.
 
 // Yemas del Sol flows (registered separately in app.js, referenced here for redirect support)
 const YEMAS_FLOWS = ['menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'support'];
@@ -43,34 +44,53 @@ class MessageService {
       // 4. Get or create session
       await sessionService.getOrCreateSession(user.id);
 
-      // 5. If new user on WhatsApp, send the registro_cliente Flow natively
+      // 5. New WhatsApp user — send welcome message and route to menuFlow
+      //    NOTE: Native WhatsApp Flow (registro_cliente) is disabled.
+      //    Registration data (address, schedule) is collected progressively through conversation.
       if (isNewUser && channel === 'whatsapp') {
-        logger.info(`New WhatsApp user detected (${userId}). Sending registro_cliente flow.`);
+        logger.info(`New WhatsApp user detected (${userId}). Sending welcome message.`);
+
         const env = require('../config/env');
         const phoneNumberId = (metadata && metadata.phoneNumberId) || env.META_PHONE_NUMBER_ID;
+
+        const welcomeText =
+          `👋 ¡Hola! Bienvenido/a a *Yemas del Sol* 🐔🥚\n\n` +
+          `Somos productores de huevos frescos de producción propia. ` +
+          `Te entregamos en tu domicilio.\n\n` +
+          `¿En qué puedo ayudarte hoy?`;
+
+        let outgoingMessageId = null;
         try {
-          const flowResult = await registroClienteFlow.sendToNewUser(phoneNumberId, userId);
-          // Save the outgoing flow message to conversation history
+          const sendResult = await metaService.sendWhatsAppMessage(
+            phoneNumberId,
+            userId,
+            welcomeText,
+          );
+          outgoingMessageId = sendResult?.messages?.[0]?.id || null;
+
           await Message.create({
             conversationId: conversation.id,
             direction: 'out',
-            content: '[WhatsApp Flow: registro_cliente enviado]',
-            messageType: 'interactive',
-            externalId: flowResult?.messages?.[0]?.id || null,
-            metadata: { flowId: registroClienteFlow.flowId, source: 'registro_cliente' },
+            content: welcomeText,
+            messageType: 'text',
+            externalId: outgoingMessageId,
+            metadata: { source: 'welcome_new_user' },
           });
-          logger.info(`registro_cliente flow sent successfully to new user ${userId}`);
-        } catch (flowError) {
-          // Fallback: if the native Flow fails, send the text-based welcome step
-          logger.warn(`Failed to send native registro_cliente flow to ${userId}: ${flowError.message}. Falling back to text.`);
-          await sessionService.updateFlow(user.id, 'registro_cliente', 0, { isNewUser: true });
+
+          logger.info(`Welcome message sent to new user ${userId}`);
+        } catch (sendError) {
+          logger.error(`Failed to send welcome to new user ${userId}: ${sendError.message}`);
         }
+
+        // Set session to menuFlow so next message shows the main menu
+        await sessionService.updateFlow(user.id, 'menu', 0, { isNewUser: true });
+
         return {
           userId: user.id,
           channel: user.channel,
           contact: user.contact,
-          response: 'registro_cliente flow sent',
-          messageId: null,
+          response: welcomeText,
+          messageId: outgoingMessageId,
         };
       }
 
