@@ -37,6 +37,11 @@ const FLOWS = {
   SALES: 'sales',
   SUPPORT: 'support',
   AI_FALLBACK: 'ai_fallback',
+  MENU: 'menu',
+  SUSCRIPCION: 'suscripcion',
+  PEDIDOS: 'pedidos',
+  CAMBIO_DIRECCION: 'cambio_direccion',
+  REPROGRAMAR_ENTREGA: 'reprogramar_entrega',
 };
 
 // HTTP Status Codes

@@ -73,12 +73,24 @@ class FlowService {
   /**
    * Check if message should start a specific flow
    */
-  async shouldStartFlow(flowName, userMessage) {
+  async shouldStartFlow(flowName, userMessage, userId) {
     try {
       const flow = this.flows[flowName];
 
       if (!flow || !flow.shouldStart) {
         return false;
+      }
+
+      // If we have a userId, check if the user is registered
+      if (userId) {
+        const { User } = require('../models');
+        const user = await User.findByPk(userId);
+        const isRegistered = user && user.firstName && (user.address || user.location);
+
+        if (!isRegistered) {
+          // Unregistered users can only start the menu flow
+          return flowName === 'menu' && flow.shouldStart(userMessage);
+        }
       }
 
       return flow.shouldStart(userMessage);

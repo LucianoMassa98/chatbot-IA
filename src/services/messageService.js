@@ -55,7 +55,6 @@ class MessageService {
 
         const welcomeText =
           `👋 ¡Hola! Bienvenido/a a *Yemas del Sol* 🐔🥚\n\n` +
-          `Somos productores de huevos frescos de producción propia. ` +
           `Te entregamos en tu domicilio.\n\n` +
           `¿En qué puedo ayudarte hoy?`;
 
@@ -256,7 +255,7 @@ class MessageService {
 
       // Check which Yemas del Sol flow to start
       for (const flowName of YEMAS_FLOWS) {
-        const shouldStart = await flowService.shouldStartFlow(flowName, userMessage);
+        const shouldStart = await flowService.shouldStartFlow(flowName, userMessage, user.id);
         if (shouldStart) {
           await sessionService.updateFlow(user.id, flowName, 0, {});
           const newContext = await sessionService.getSessionContext(user.id);

@@ -1,5 +1,5 @@
 const logger = require('../../config/logger');
-const { Product, Subscription } = require('../../models');
+const { Product, Subscription, User } = require('../../models');
 const metaService = require('../metaService');
 const env = require('../../config/env');
 
@@ -20,8 +20,28 @@ const menuFlow = {
   steps: {
     /**
      * Step 0: Enviar menú principal con botones interactivos
+     * Si el usuario no está registrado, se inicia el proceso de registro progresivo.
      */
     0: async (userMessage, sessionContext) => {
+      const user = await User.findByPk(sessionContext.userId);
+      const isRegistered = user && user.firstName && (user.address || user.location);
+
+      if (!isRegistered) {
+        if (!user.firstName) {
+          return {
+            response: '¡Hola! Bienvenido/a a *Yemas del Sol* 🐔\n\nPara comenzar con tu registro, por favor ingresá tu *nombre y apellido*:',
+            nextStep: 2,
+            context: {},
+          };
+        } else {
+          return {
+            response: `¡Hola, ${user.firstName}! 👋\n\nPara poder enviarte nuestros productos, necesitamos tu dirección de entrega.\n\nPor favor, escribí tu *dirección completa* o compartinos tu *ubicación* (puedes enviar tu ubicación actual de WhatsApp o un enlace de Google Maps) 📍:`,
+            nextStep: 3,
+            context: {},
+          };
+        }
+      }
+
       return {
         response: buildMainMenuText(),
         nextStep: 1,
@@ -108,12 +128,77 @@ const menuFlow = {
         interactive: buildMainMenuInteractive(),
       };
     },
+
+    /**
+     * Step 2: Recibir nombre y solicitar dirección/ubicación
+     */
+    2: async (userMessage, sessionContext) => {
+      const name = userMessage.trim();
+      // Ignorar mensajes automáticos o vacíos
+      if (!name || name.length < 2 || name.startsWith('[')) {
+        return {
+          response: 'Por favor, ingresá un nombre y apellido válido (ej. Juan Pérez):',
+          nextStep: 2,
+          context: {},
+        };
+      }
+
+      const user = await User.findByPk(sessionContext.userId);
+      if (user) {
+        await user.update({ firstName: name });
+      }
+
+      return {
+        response: `¡Un gusto conocerte, *${name}*! 👋\n\nAhora, por favor ingresá tu *dirección de entrega* o compartinos tu *ubicación* (puedes enviar tu ubicación actual de WhatsApp o un enlace de Google Maps) 📍:`,
+        nextStep: 3,
+        context: {},
+      };
+    },
+
+    /**
+     * Step 3: Recibir dirección/ubicación y mostrar menú principal
+     */
+    3: async (userMessage, sessionContext) => {
+      const addressOrLocation = userMessage.trim();
+      if (!addressOrLocation || addressOrLocation.length < 5 || addressOrLocation.startsWith('[')) {
+        return {
+          response: 'Por favor, ingresá una dirección válida o compartinos tu ubicación 📍:',
+          nextStep: 3,
+          context: {},
+        };
+      }
+
+      const user = await User.findByPk(sessionContext.userId);
+      if (user) {
+        const isMapUrl = addressOrLocation.includes('maps.google.com') || 
+                         addressOrLocation.includes('maps.app.goo.gl') || 
+                         addressOrLocation.includes('goo.gl/maps');
+        
+        if (isMapUrl) {
+          await user.update({
+            location: { googleMapsUrl: addressOrLocation },
+            address: 'Ubicación de Google Maps'
+          });
+        } else {
+          await user.update({
+            address: addressOrLocation
+          });
+        }
+      }
+
+      return {
+        response: `¡Registro completado con éxito! 🎉\n\n` + buildMainMenuText(),
+        nextStep: 1,
+        context: {},
+        interactive: buildMainMenuInteractive(),
+      };
+    },
   },
 };
 
 function buildMainMenuText() {
   return (
-    '🐔 *Yemas del Sol* — ¿En qué puedo ayudarte?\n\n' +
+    'Seleccioná una opción:\n\n' +
     '1️⃣ Comprar maples de huevos\n' +
     '2️⃣ Ver planes de suscripción\n' +
     '3️⃣ Consultar mis pedidos\n' +

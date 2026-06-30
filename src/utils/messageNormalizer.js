@@ -32,6 +32,17 @@ const normalizeMessage = (entry, messagingProduct) => {
           }
         }
         message.messageType = 'text'; // Map to text to prevent DB enum violation
+      } else if (entry.messages[0].type === 'location') {
+        const loc = entry.messages[0].location;
+        message.messageType = 'text';
+        message.text = loc.address || `https://maps.google.com/?q=${loc.latitude},${loc.longitude}`;
+        message.metadata.location = {
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          name: loc.name,
+          address: loc.address,
+          googleMapsUrl: `https://maps.google.com/?q=${loc.latitude},${loc.longitude}`
+        };
       } else {
         const allowedTypes = ['text', 'image', 'document', 'audio', 'video'];
         const receivedType = entry.messages[0].type;
