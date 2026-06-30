@@ -12,10 +12,11 @@ class NotificationService {
    * @param {object} user  - User model instance
    * @param {object} order - Order model instance
    * @param {string} newStatus
+   * @param {object} [deliveryInfo] - Optional calculated delivery date and time window
    */
-  async sendStatusNotification(user, order, newStatus) {
+  async sendStatusNotification(user, order, newStatus, deliveryInfo = null) {
     const handlers = {
-      paid: () => this.sendPaymentConfirmed(user, order),
+      paid: () => this.sendPaymentConfirmed(user, order, deliveryInfo),
       preparing: () => this.sendOrderPreparing(user, order),
       ready: () => this.sendOrderReady(user, order),
       delivering: () => this.sendOrderOutForDelivery(user, order),
@@ -35,11 +36,22 @@ class NotificationService {
   /**
    * ✅ Payment confirmed
    */
-  async sendPaymentConfirmed(user, order) {
+  async sendPaymentConfirmed(user, order, deliveryInfo = null) {
+    let deliveryMsg = '';
+    
+    if (deliveryInfo) {
+      const formattedDate = this._formatDeliveryDate(deliveryInfo.date);
+      deliveryMsg = `📅 *Fecha de entrega estimada:* ${formattedDate} entre las ${deliveryInfo.startTime} y ${deliveryInfo.endTime} hs.\n\n`;
+    } else if (order.estimatedDelivery) {
+      const formattedDate = this._formatDeliveryDate(order.estimatedDelivery);
+      deliveryMsg = `📅 *Fecha de entrega estimada:* ${formattedDate}\n\n`;
+    }
+
     const msg =
       `✅ *¡Tu pago fue confirmado!*\n\n` +
       `Pedido #${order.id.slice(0, 8).toUpperCase()}\n` +
       `Total: $${Number(order.total).toLocaleString('es-AR')}\n\n` +
+      deliveryMsg +
       `Estamos preparando tu pedido. Te avisaremos cuando esté listo. 🥚`;
     await this._send(user, msg);
   }
@@ -151,6 +163,16 @@ class NotificationService {
       logger.error(`Failed to send notification to ${user.contact}: ${err.message}`);
       throw err;
     }
+  }
+
+  /** @private */
+  _formatDeliveryDate(date) {
+    return new Date(date).toLocaleString('es-AR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      timeZone: 'America/Argentina/Buenos_Aires',
+    });
   }
 
   /** @private */

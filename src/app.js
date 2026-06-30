@@ -149,6 +149,27 @@ const initializeDatabase = async () => {
       await models.sequelize.sync();
       logger.info('Database models synchronized');
     }
+
+    // Seed default Operating Hours if table is empty
+    const { OperatingHours } = models;
+    const count = await OperatingHours.count();
+    if (count === 0) {
+      logger.info('OperatingHours table is empty. Seeding default data...');
+      const defaultHours = [];
+      for (let day = 0; day <= 6; day++) {
+        defaultHours.push({
+          dayOfWeek: day,
+          openTime: '08:00:00',
+          closeTime: '18:00:00',
+          deliveryStartTime: '10:00:00',
+          deliveryEndTime: '17:00:00',
+          // Monday (1) to Friday (5) active by default
+          isActive: day >= 1 && day <= 5,
+        });
+      }
+      await OperatingHours.bulkCreate(defaultHours);
+      logger.info('Default OperatingHours seeded successfully.');
+    }
   } catch (error) {
     logger.error(`Database initialization failed: ${error.message}`);
     process.exit(1);
