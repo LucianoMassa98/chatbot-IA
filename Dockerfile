@@ -1,7 +1,7 @@
 # Multi-stage build for production-ready image
 
 # Stage 1: Build
-FROM node:18-alpine AS builder
+FROM public.ecr.aws/docker/library/node:18-alpine AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # Stage 2: Runtime
-FROM node:18-alpine
+FROM public.ecr.aws/docker/library/node:18-alpine
 
 WORKDIR /app
 
