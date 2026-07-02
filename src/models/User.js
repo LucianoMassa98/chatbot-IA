@@ -87,6 +87,10 @@ module.exports = (sequelize) => {
       as: 'orders',
       onDelete: 'CASCADE',
     });
+    User.hasMany(models.OrderAssignment, {
+      foreignKey: 'operator_id',
+      as: 'assignments',
+    });
   };
 
   return User;

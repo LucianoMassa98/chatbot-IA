@@ -146,6 +146,61 @@ class NotificationService {
     await this._send(user, msg);
   }
 
+  /**
+   * 🔔 Notify an operator about a new assignment
+   * @param {object} operator - User model instance (role=operador)
+   * @param {object} order    - Order model instance (with user association loaded)
+   * @param {string} role     - 'armador' or 'repartidor'
+   */
+  async sendOperatorAssignment(operator, order, role) {
+    const customer = order.user;
+    const productName = order.product?.name || order.subscription?.name || 'Pedido';
+    const orderId = order.id.slice(0, 8).toUpperCase();
+    const address = order.deliveryAddress || customer?.address || 'No especificada';
+
+    if (role === 'armador') {
+      const msg =
+        `🔔 *Nuevo pedido para armar*\n\n` +
+        `Pedido #${orderId}\n` +
+        `Producto: ${productName}\n` +
+        `Cantidad: ${order.quantity} maple(s)\n` +
+        `Cliente: ${customer?.firstName || customer?.contact || 'N/A'}\n\n` +
+        `Por favor ingresá al panel para confirmar cuando esté listo.`;
+      await this._send(operator, msg);
+    } else if (role === 'repartidor') {
+      const deliveryTime = order.estimatedDelivery
+        ? `\nEntrega estimada: ${this._formatDateTime(order.estimatedDelivery)}`
+        : '';
+
+      const locationUrl = customer?.location?.googleMapsUrl
+        ? `\n📎 Mapa: ${customer.location.googleMapsUrl}`
+        : '';
+
+      const msg =
+        `🔔 *Nuevo pedido para entregar*\n\n` +
+        `Pedido #${orderId}\n` +
+        `Producto: ${productName} (x${order.quantity})\n` +
+        `Cliente: ${customer?.firstName || customer?.contact || 'N/A'}\n` +
+        `📍 Dirección: ${address}${locationUrl}${deliveryTime}\n\n` +
+        `Por favor ingresá al panel para confirmar cuando hayas entregado.`;
+      await this._send(operator, msg);
+    }
+  }
+
+  /**
+   * 🔔 Notify an operator that their assignment was removed/reassigned
+   * @param {object} operator - User model instance
+   * @param {object} order    - Order model instance
+   * @param {string} role     - 'armador' or 'repartidor'
+   */
+  async sendOperatorUnassigned(operator, order, role) {
+    const roleLabel = role === 'armador' ? 'armado' : 'entrega';
+    const msg =
+      `ℹ️ Se reasignó el ${roleLabel} del pedido #${order.id.slice(0, 8).toUpperCase()}.\n\n` +
+      `Ya no estás a cargo de este pedido.`;
+    await this._send(operator, msg);
+  }
+
   /** @private — Sends a WhatsApp text message */
   async _send(user, text) {
     if (user.channel !== 'whatsapp') {

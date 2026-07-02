@@ -94,6 +94,7 @@ module.exports = (sequelize) => {
     Order.belongsTo(models.Product, { foreignKey: 'product_id', as: 'product' });
     Order.belongsTo(models.Subscription, { foreignKey: 'subscription_id', as: 'subscription' });
     Order.hasOne(models.Payment, { foreignKey: 'order_id', as: 'payment' });
+    Order.hasMany(models.OrderAssignment, { foreignKey: 'order_id', as: 'assignments' });
   };
 
   return Order;

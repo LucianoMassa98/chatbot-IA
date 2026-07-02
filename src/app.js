@@ -9,9 +9,7 @@ const flowService = require('./services/flowService');
 const models = require('./models');
 
 // Import routes
-const webhookRoutes = require('./routes/webhookRoutes');
-const crmRoutes = require('./routes/crmRoutes');
-const mercadoPagoRoutes = require('./routes/mercadoPagoRoutes');
+const routes = require('./routes');
 
 // Import flows
 const salesFlow = require('./services/flows/salesFlow');
@@ -20,6 +18,8 @@ const registroClienteFlow = require('./services/flows/registroClienteFlow');
 const menuFlow = require('./services/flows/menuFlow');
 const subscriptionFlow = require('./services/flows/subscriptionFlow');
 const pedidoFlow = require('./services/flows/pedidoFlow');
+const cambiarDireccionFlow = require('./services/flows/cambiarDireccionFlow');
+const reprogramarFlow = require('./services/flows/reprogramarFlow');
 
 /**
  * Initialize Express app
@@ -67,9 +67,7 @@ app.get('/health', (req, res) => {
 /**
  * API Routes
  */
-app.use('/webhook', webhookRoutes);
-app.use('/webhook', mercadoPagoRoutes);
-app.use('/api', crmRoutes);
+app.use('/', routes);
 
 /**
  * Root endpoint
@@ -112,6 +110,8 @@ const initializeFlows = () => {
   flowService.registerFlow(menuFlow.name, menuFlow);
   flowService.registerFlow(subscriptionFlow.name, subscriptionFlow);
   flowService.registerFlow(pedidoFlow.name, pedidoFlow);
+  flowService.registerFlow(cambiarDireccionFlow.name, cambiarDireccionFlow);
+  flowService.registerFlow(reprogramarFlow.name, reprogramarFlow);
   logger.info('Conversation flows initialized');
 };
 
