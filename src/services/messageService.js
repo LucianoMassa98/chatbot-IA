@@ -10,7 +10,7 @@ const { normalizeMessage } = require('../utils/messageNormalizer');
 // New users receive a text welcome message and are routed to menuFlow instead.
 
 // Yemas del Sol flows (registered separately in app.js, referenced here for redirect support)
-const YEMAS_FLOWS = ['menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'support'];
+const YEMAS_FLOWS = ['menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'support', 'armador_menu', 'repartidor_menu'];
 
 /**
  * Message Service - Main orchestrator for message handling and response generation
@@ -253,7 +253,22 @@ class MessageService {
         }
       }
 
-      // Check which Yemas del Sol flow to start
+      // Role-based flow routing: armador/repartidor get their dedicated menus
+      if (user.role === 'armador') {
+        await sessionService.updateFlow(user.id, 'armador_menu', 0, {});
+        const newContext = await sessionService.getSessionContext(user.id);
+        newContext.userId = user.id;
+        return this.executeCurrentFlow(user.id, 'armador_menu', userMessage, newContext);
+      }
+
+      if (user.role === 'repartidor') {
+        await sessionService.updateFlow(user.id, 'repartidor_menu', 0, {});
+        const newContext = await sessionService.getSessionContext(user.id);
+        newContext.userId = user.id;
+        return this.executeCurrentFlow(user.id, 'repartidor_menu', userMessage, newContext);
+      }
+
+      // Check which Yemas del Sol flow to start (cliente / administrador)
       for (const flowName of YEMAS_FLOWS) {
         const shouldStart = await flowService.shouldStartFlow(flowName, userMessage, user.id);
         if (shouldStart) {
@@ -264,7 +279,7 @@ class MessageService {
         }
       }
 
-      // Default: show main menu
+      // Default: show main menu (cliente / administrador)
       await sessionService.updateFlow(user.id, 'menu', 0, {});
       const newContext = await sessionService.getSessionContext(user.id);
       newContext.userId = user.id;

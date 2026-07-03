@@ -20,6 +20,8 @@ const subscriptionFlow = require('./services/flows/subscriptionFlow');
 const pedidoFlow = require('./services/flows/pedidoFlow');
 const cambiarDireccionFlow = require('./services/flows/cambiarDireccionFlow');
 const reprogramarFlow = require('./services/flows/reprogramarFlow');
+const armadorMenuFlow = require('./services/flows/armadorMenuFlow');
+const repartidorMenuFlow = require('./services/flows/repartidorMenuFlow');
 
 /**
  * Initialize Express app
@@ -112,6 +114,8 @@ const initializeFlows = () => {
   flowService.registerFlow(pedidoFlow.name, pedidoFlow);
   flowService.registerFlow(cambiarDireccionFlow.name, cambiarDireccionFlow);
   flowService.registerFlow(reprogramarFlow.name, reprogramarFlow);
+  flowService.registerFlow(armadorMenuFlow.name, armadorMenuFlow);
+  flowService.registerFlow(repartidorMenuFlow.name, repartidorMenuFlow);
   logger.info('Conversation flows initialized');
 };
 
@@ -124,7 +128,7 @@ const initializeDatabase = async () => {
     logger.info('Database connection established successfully');
 
     // Ensure the ENUM type includes all Yemas del Sol flow values
-    const yemaFlows = ['registro_cliente', 'menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar'];
+    const yemaFlows = ['registro_cliente', 'menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'armador_menu', 'repartidor_menu'];
     for (const val of yemaFlows) {
       await models.sequelize.query(`
         DO $$

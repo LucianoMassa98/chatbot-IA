@@ -19,7 +19,7 @@ module.exports = (sequelize) => {
         },
       },
       currentFlow: {
-        type: DataTypes.ENUM('idle', 'sales', 'support', 'ai_fallback', 'registro_cliente', 'menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar'),
+        type: DataTypes.ENUM('idle', 'sales', 'support', 'ai_fallback', 'registro_cliente', 'menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'armador_menu', 'repartidor_menu'),
         allowNull: false,
         defaultValue: 'idle',
         comment: 'Current active flow',
