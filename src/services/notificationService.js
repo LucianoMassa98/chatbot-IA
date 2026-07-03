@@ -221,16 +221,12 @@ class NotificationService {
     }
 
     const productName = order.product?.name || order.subscription?.name || 'Pedido';
-    const customer = order.user?.firstName || order.user?.contact || 'N/A';
-    const orderId = order.id.slice(0, 8).toUpperCase();
 
     const consolidado = await this._buildConsolidadoArmador();
 
     const msg =
-      `📦 *Nuevo pedido pagado para armar*\n\n` +
-      `Pedido #${orderId}\n` +
-      `Producto: ${productName} (x${order.quantity})\n` +
-      `Cliente: ${customer}\n\n` +
+      `📦 *Actualización de pedidos*\n\n` +
+      `Producto: ${productName}  x ${order.quantity}\n\n` +
       consolidado +
       `\nIngresá al *PANEL* para tomar un pedido.`;
 
@@ -314,17 +310,23 @@ class NotificationService {
       return '📋 No hay pedidos pendientes por armar en este momento.\n';
     }
 
-    let totalMaples = 0;
-    const list = pending.map((o, i) => {
+    // Group by product name and sum quantities
+    const productMap = {};
+    let totalProducts = 0;
+    for (const o of pending) {
       const name = o.product?.name || o.subscription?.name || 'Pedido';
-      const customer = o.user?.firstName || o.user?.contact || 'N/A';
-      totalMaples += o.quantity || 1;
-      return `${i + 1}. #${o.id.slice(0, 8).toUpperCase()} — ${name} (x${o.quantity}) — ${customer}`;
-    }).join('\n');
+      const qty = o.quantity || 1;
+      productMap[name] = (productMap[name] || 0) + qty;
+      totalProducts += qty;
+    }
+
+    const list = Object.entries(productMap)
+      .map(([name, qty], i) => `${i + 1}. ${name} (x${qty})`)
+      .join('\n');
 
     return (
-      `📋 *Consolidado de pedidos por armar:*\n${list}\n\n` +
-      `📊 Total: ${pending.length} pedido${pending.length > 1 ? 's' : ''}, ${totalMaples} maple${totalMaples > 1 ? 's' : ''} por separar.\n`
+      `📋 *Consolidado de productos por armar:*\n${list}\n\n` +
+      `📊 Total: ${totalProducts} producto${totalProducts > 1 ? 's' : ''}\n`
     );
   }
 
