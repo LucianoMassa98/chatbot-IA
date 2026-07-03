@@ -21,7 +21,7 @@ module.exports = (sequelize) => {
         comment: 'Communication channel — WhatsApp only for Yemas del Sol',
       },
       role: {
-        type: DataTypes.ENUM('cliente', 'operador', 'administrador'),
+        type: DataTypes.ENUM('cliente', 'armador', 'repartidor', 'administrador'),
         allowNull: false,
         defaultValue: 'cliente',
         comment: 'User role in the system',

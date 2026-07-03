@@ -119,6 +119,13 @@ class AssignmentService {
       logger.warn(`Failed to notify customer for order ${orderId}: ${err.message}`);
     }
 
+    // Notify all repartidores about the order ready for delivery + consolidated pending
+    try {
+      await notificationService.notifyRepartidoresOrderReady(order);
+    } catch (err) {
+      logger.warn(`Failed to notify repartidores for order ${orderId}: ${err.message}`);
+    }
+
     logger.info('Armado completed', { orderId, operatorId });
     return assignment;
   }

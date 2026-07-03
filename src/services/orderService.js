@@ -146,6 +146,22 @@ class OrderService {
       logger.warn(`Failed to send status notification for order ${orderId}: ${notifError.message}`);
     }
 
+    // Notify armadores when order becomes paid (CRM route)
+    if (newStatus === 'paid') {
+      try {
+        const fullOrder = await Order.findByPk(orderId, {
+          include: [
+            { association: 'user' },
+            { association: 'product' },
+            { association: 'subscription' },
+          ],
+        });
+        await notificationService.notifyArmadoresNewOrder(fullOrder);
+      } catch (e) {
+        logger.warn(`Failed to notify armadores for order ${orderId}: ${e.message}`);
+      }
+    }
+
     logger.info('Order status updated', { orderId, oldStatus: order.status, newStatus });
     return order;
   }
@@ -185,6 +201,22 @@ class OrderService {
       } catch (e) {
         logger.warn(`Notification error after payment: ${e.message}`);
       }
+
+      // Notify all armadores about the new paid order + consolidated pending
+      try {
+        // Reload order with associations for notification context
+        const fullOrder = await Order.findByPk(order.id, {
+          include: [
+            { association: 'user' },
+            { association: 'product' },
+            { association: 'subscription' },
+          ],
+        });
+        await notificationService.notifyArmadoresNewOrder(fullOrder);
+      } catch (e) {
+        logger.warn(`Failed to notify armadores for order ${orderId}: ${e.message}`);
+      }
+
       logger.info('Order marked as paid after MP approval', { orderId, mpPaymentId, estimatedDelivery: deliveryInfo.date });
     } else if (['rejected', 'cancelled'].includes(mpStatus) && order.status === 'pending_payment') {
       await order.update({ status: 'cancelled' });

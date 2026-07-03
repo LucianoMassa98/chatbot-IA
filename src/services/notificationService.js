@@ -1,6 +1,8 @@
 const metaService = require('./metaService');
 const logger = require('../config/logger');
 const env = require('../config/env');
+const { User, Order, OrderAssignment } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * Notification Service
@@ -199,6 +201,174 @@ class NotificationService {
       `ℹ️ Se reasignó el ${roleLabel} del pedido #${order.id.slice(0, 8).toUpperCase()}.\n\n` +
       `Ya no estás a cargo de este pedido.`;
     await this._send(operator, msg);
+  }
+
+  // ─── Dynamic consolidated notifications ─────────────────
+
+  /**
+   * Notify all active armadores about a new paid order and send a
+   * consolidated list of all orders pending assembly.
+   * @param {object} order - Order model instance (with user, product/subscription loaded)
+   */
+  async notifyArmadoresNewOrder(order) {
+    const armadores = await User.findAll({
+      where: { role: 'armador', isActive: true },
+    });
+
+    if (!armadores.length) {
+      logger.info('No active armadores to notify');
+      return;
+    }
+
+    const productName = order.product?.name || order.subscription?.name || 'Pedido';
+    const customer = order.user?.firstName || order.user?.contact || 'N/A';
+    const orderId = order.id.slice(0, 8).toUpperCase();
+
+    const consolidado = await this._buildConsolidadoArmador();
+
+    const msg =
+      `📦 *Nuevo pedido pagado para armar*\n\n` +
+      `Pedido #${orderId}\n` +
+      `Producto: ${productName} (x${order.quantity})\n` +
+      `Cliente: ${customer}\n\n` +
+      consolidado +
+      `\nIngresá al *PANEL* para tomar un pedido.`;
+
+    for (const armador of armadores) {
+      try {
+        await this._send(armador, msg);
+      } catch (err) {
+        logger.warn(`Failed to notify armador ${armador.id}: ${err.message}`);
+      }
+    }
+  }
+
+  /**
+   * Notify all active repartidores about a newly ready order and send a
+   * consolidated list of all orders pending delivery.
+   * @param {object} order - Order model instance (with user, product/subscription loaded)
+   */
+  async notifyRepartidoresOrderReady(order) {
+    const repartidores = await User.findAll({
+      where: { role: 'repartidor', isActive: true },
+    });
+
+    if (!repartidores.length) {
+      logger.info('No active repartidores to notify');
+      return;
+    }
+
+    const productName = order.product?.name || order.subscription?.name || 'Pedido';
+    const customer = order.user?.firstName || order.user?.contact || 'N/A';
+    const orderId = order.id.slice(0, 8).toUpperCase();
+    const address = order.deliveryAddress || order.user?.address || 'Sin dirección';
+    const mapUrl = order.user?.location?.googleMapsUrl
+      ? `\n📎 Mapa: ${order.user.location.googleMapsUrl}`
+      : '';
+
+    const consolidado = await this._buildConsolidadoRepartidor();
+
+    const msg =
+      `🚗 *Nuevo pedido listo para entregar*\n\n` +
+      `Pedido #${orderId}\n` +
+      `Producto: ${productName} (x${order.quantity})\n` +
+      `Cliente: ${customer}\n` +
+      `📍 ${address}${mapUrl}\n\n` +
+      consolidado +
+      `\nIngresá al *PANEL* para tomar una entrega.`;
+
+    for (const repartidor of repartidores) {
+      try {
+        await this._send(repartidor, msg);
+      } catch (err) {
+        logger.warn(`Failed to notify repartidor ${repartidor.id}: ${err.message}`);
+      }
+    }
+  }
+
+  /**
+   * Build a consolidated text of all paid orders without an active armador assignment.
+   * @private
+   * @returns {Promise<string>}
+   */
+  async _buildConsolidadoArmador() {
+    const orders = await Order.findAll({
+      where: { status: 'paid' },
+      include: [
+        { association: 'user' },
+        { association: 'product' },
+        { association: 'subscription' },
+        {
+          association: 'assignments',
+          required: false,
+          where: { role: 'armador', status: { [Op.ne]: 'completed' } },
+        },
+      ],
+      order: [['created_at', 'ASC']],
+    });
+
+    // Filter to only orders without an active armador assignment
+    const pending = orders.filter((o) => !o.assignments || o.assignments.length === 0);
+
+    if (!pending.length) {
+      return '📋 No hay pedidos pendientes por armar en este momento.\n';
+    }
+
+    let totalMaples = 0;
+    const list = pending.map((o, i) => {
+      const name = o.product?.name || o.subscription?.name || 'Pedido';
+      const customer = o.user?.firstName || o.user?.contact || 'N/A';
+      totalMaples += o.quantity || 1;
+      return `${i + 1}. #${o.id.slice(0, 8).toUpperCase()} — ${name} (x${o.quantity}) — ${customer}`;
+    }).join('\n');
+
+    return (
+      `📋 *Consolidado de pedidos por armar:*\n${list}\n\n` +
+      `📊 Total: ${pending.length} pedido${pending.length > 1 ? 's' : ''}, ${totalMaples} maple${totalMaples > 1 ? 's' : ''} por separar.\n`
+    );
+  }
+
+  /**
+   * Build a consolidated text of all ready orders without an active repartidor assignment.
+   * @private
+   * @returns {Promise<string>}
+   */
+  async _buildConsolidadoRepartidor() {
+    const orders = await Order.findAll({
+      where: { status: 'ready' },
+      include: [
+        { association: 'user' },
+        { association: 'product' },
+        { association: 'subscription' },
+        {
+          association: 'assignments',
+          required: false,
+          where: { role: 'repartidor', status: { [Op.ne]: 'completed' } },
+        },
+      ],
+      order: [['created_at', 'ASC']],
+    });
+
+    // Filter to only orders without an active repartidor assignment
+    const pending = orders.filter((o) => !o.assignments || o.assignments.length === 0);
+
+    if (!pending.length) {
+      return '📋 No hay entregas pendientes en este momento.\n';
+    }
+
+    let totalMaples = 0;
+    const list = pending.map((o, i) => {
+      const name = o.product?.name || o.subscription?.name || 'Pedido';
+      const customer = o.user?.firstName || o.user?.contact || 'N/A';
+      const addr = o.deliveryAddress || o.user?.address || 'Sin dirección';
+      totalMaples += o.quantity || 1;
+      return `${i + 1}. #${o.id.slice(0, 8).toUpperCase()} — ${name} (x${o.quantity}) — ${customer}\n   📍 ${addr}`;
+    }).join('\n');
+
+    return (
+      `📋 *Consolidado de entregas pendientes:*\n${list}\n\n` +
+      `📊 Total: ${pending.length} entrega${pending.length > 1 ? 's' : ''}, ${totalMaples} maple${totalMaples > 1 ? 's' : ''}.\n`
+    );
   }
 
   /** @private — Sends a WhatsApp text message */
