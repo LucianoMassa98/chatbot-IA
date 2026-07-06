@@ -262,6 +262,64 @@ class AssignmentService {
   }
 
   /**
+   * Complete the consolidated assembly of all paid orders.
+   * - Finds all orders in 'paid' status without an active armador assignment
+   * - Creates a completed armador assignment for each
+   * - Transitions all orders to 'ready'
+   * - Notifies repartidores about the new ready orders
+   * - Notifies each customer that their order is ready
+   *
+   * @param {string} operatorId - The armador's user ID
+   * @returns {Promise<Order[]>} - The list of processed orders
+   */
+  async completeConsolidado(operatorId) {
+    // Get all paid orders without an active armador
+    const orders = await this.getPendingAssignments('armador');
+
+    if (!orders.length) {
+      throw new AppError('No hay pedidos pendientes para armar.', 400);
+    }
+
+    const processedOrders = [];
+
+    for (const order of orders) {
+      // Create completed armador assignment
+      await OrderAssignment.create({
+        orderId: order.id,
+        operatorId,
+        role: 'armador',
+        status: 'completed',
+        assignedAt: new Date(),
+        completedAt: new Date(),
+      });
+
+      // Transition order to 'ready'
+      await order.update({ status: 'ready' });
+
+      // Notify customer that order is ready
+      try {
+        await notificationService.sendOrderReady(order.user, order);
+      } catch (err) {
+        logger.warn(`Failed to notify customer for order ${order.id}: ${err.message}`);
+      }
+
+      processedOrders.push(order);
+    }
+
+    // Notify all repartidores about the consolidated ready orders
+    try {
+      // Use the last processed order to trigger the consolidated notification
+      const lastOrder = processedOrders[processedOrders.length - 1];
+      await notificationService.notifyRepartidoresOrderReady(lastOrder);
+    } catch (err) {
+      logger.warn(`Failed to notify repartidores: ${err.message}`);
+    }
+
+    logger.info('Consolidado completed', { operatorId, orderCount: processedOrders.length });
+    return processedOrders;
+  }
+
+  /**
    * Get all active assignments for a specific operator.
    * @param {string} operatorId
    * @returns {Promise<OrderAssignment[]>}
