@@ -51,8 +51,7 @@ const repartidorMenuFlow = {
           `• Pedidos listos para entregar: ${readyOrders.length}\n\n` +
           `Seleccioná una opción:\n\n` +
           `1️⃣ Ver entregas pendientes\n` +
-          `2️⃣ Ver mis entregas activas\n` +
-          `3️⃣ Volver al menú de cliente\n\n` +
+          `2️⃣ Ver mis entregas activas\n\n` +
           `_Respondé con el número de la opción._`,
         nextStep: 1,
         context: {},

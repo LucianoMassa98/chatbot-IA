@@ -53,7 +53,6 @@ const armadorMenuFlow = {
           `Seleccioná una opción:\n\n` +
           `1️⃣ Confirmar armado de consolidado\n` +
           `2️⃣ Ver mis tareas activas\n` +
-          `3️⃣ Volver al menú de cliente\n\n` +
           `_Respondé con el número de la opción._`,
         nextStep: 1,
         context: {},

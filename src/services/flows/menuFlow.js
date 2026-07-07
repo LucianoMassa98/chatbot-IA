@@ -29,7 +29,7 @@ const menuFlow = {
       if (!isRegistered) {
         if (!user.firstName) {
           return {
-            response: '¡Hola! Bienvenido/a a *Yemas del Sol* 🐔\n\nPara comenzar con tu registro, por favor ingresá tu *nombre y apellido*:',
+            response: 'Para comenzar, necesitamos realizar tu registro. Por favor ingresá tu *nombre y apellido*:',
             nextStep: 2,
             context: {},
           };
@@ -170,10 +170,10 @@ const menuFlow = {
 
       const user = await User.findByPk(sessionContext.userId);
       if (user) {
-        const isMapUrl = addressOrLocation.includes('maps.google.com') || 
-                         addressOrLocation.includes('maps.app.goo.gl') || 
-                         addressOrLocation.includes('goo.gl/maps');
-        
+        const isMapUrl = addressOrLocation.includes('maps.google.com') ||
+          addressOrLocation.includes('maps.app.goo.gl') ||
+          addressOrLocation.includes('goo.gl/maps');
+
         if (isMapUrl) {
           await user.update({
             location: { googleMapsUrl: addressOrLocation },
