@@ -1,0 +1,464 @@
+================================================================================
+  PROMPT PARA FRONTEND — YEMAS DEL SOL CRM
+  Stack: Vite + React.js + Tailwind CSS
+  Fecha: Julio 2026
+================================================================================
+
+Necesito que crees una aplicación frontend CRM/Admin para "Yemas del Sol", una 
+empresa argentina de venta de maples de huevos frescos con delivery. 
+
+La app se conecta a un backend Node.js/Express existente. Todos los endpoints 
+están protegidos con Google OAuth (Bearer token) excepto el login.
+
+STACK OBLIGATORIO:
+- Vite como bundler
+- React.js (con hooks, functional components)
+- Tailwind CSS para estilos
+- React Router v6 para navegación
+- Axios para HTTP requests
+- @react-oauth/google para autenticación Google
+- Lucide React o React Icons para iconos
+- Recharts para gráficos del dashboard
+
+================================================================================
+  1. AUTENTICACIÓN — Google OAuth
+================================================================================
+
+Endpoint: POST /api/auth/google
+Body: { idToken: "<Google ID token>" }
+Response 200: { success: true, user: { id, email, role, firstName, picture } }
+Response 403: Usuario no registrado
+
+FLUJO:
+1. El usuario hace clic en "Iniciar sesión con Google"
+2. Google devuelve un ID token
+3. Se envía el token al backend POST /api/auth/google
+4. Si es exitoso, se guarda el token y los datos del usuario en Context/localStorage
+5. Todas las requests posteriores van con header: Authorization: Bearer <idToken>
+6. IMPORTANTE: el backend acepta roles "operador" y "administrador"
+7. CRM_FRONTEND_URL en el backend está en http://localhost:5173
+
+VARIABLE DE ENTORNO (poner en .env del frontend):
+  VITE_GOOGLE_CLIENT_ID=<tu Google Client ID>
+  VITE_API_URL=http://localhost:3000
+
+================================================================================
+  2. MODELOS DE DATOS (para entender las entidades)
+================================================================================
+
+USER:
+  - id: UUID
+  - contact: string (teléfono WhatsApp)
+  - channel: "whatsapp"
+  - role: "cliente" | "armador" | "repartidor" | "administrador"
+  - firstName, lastName: string
+  - address: string
+  - location: { lat, lng, googleMapsUrl }
+  - deliverySchedule: { morning, afternoon, evening }
+  - isActive: boolean
+  - metadata: JSON (incluye googleEmail para staff)
+
+PRODUCT:
+  - id: UUID
+  - name: string (ej. "Maple de 30 huevos")
+  - description: text
+  - price: decimal
+  - quantity: integer (default 1)
+  - unit: string ("maple", "docena", "unidad")
+  - isActive: boolean
+
+SUBSCRIPTION (plan de suscripción):
+  - id: UUID
+  - name: string (ej. "Plan Familiar")
+  - description: text
+  - maplesQuantity: integer
+  - frequency: "weekly" | "biweekly" | "monthly"
+  - price: decimal
+  - isActive: boolean
+
+ORDER:
+  - id: UUID
+  - userId: UUID (→ User)
+  - productId: UUID (→ Product, nullable)
+  - subscriptionId: UUID (→ Subscription, nullable)
+  - type: "single" | "subscription"
+  - status: "pending_payment" | "paid" | "preparing" | "ready" | "delivering" | "delivered" | "rescheduled" | "cancelled"
+  - quantity: integer
+  - total: decimal (en ARS)
+  - deliveryAddress: string
+  - estimatedDelivery: datetime
+  - deliveredAt: datetime
+  - notes: text
+
+PAYMENT:
+  - id: UUID
+  - orderId: UUID
+  - mercadoPagoId: string
+  - preferenceId: string
+  - paymentLink: URL
+  - status: "pending" | "approved" | "rejected" | "cancelled"
+  - amount: decimal
+
+ORDER_ASSIGNMENT:
+  - id: UUID
+  - orderId: UUID
+  - operatorId: UUID (→ User)
+  - role: "armador" | "repartidor" | "ambos"
+  - status: "assigned" | "in_progress" | "completed"
+  - assignedAt, startedAt, completedAt: datetime
+  - notes: text
+
+DELIVERY_ZONE:
+  - id: UUID
+  - name: string (ej. "Zona Norte")
+  - description: text
+  - centerLat, centerLng: decimal
+  - radiusKm: decimal
+  - localities: JSON array
+  - isActive: boolean
+
+OPERATING_HOURS:
+  - id: UUID
+  - dayOfWeek: 0-6 (0=Domingo)
+  - openTime, closeTime: TIME (ej. "08:00:00")
+  - deliveryStartTime, deliveryEndTime: TIME
+  - isActive: boolean
+
+================================================================================
+  3. API ENDPOINTS COMPLETOS
+================================================================================
+
+BASE URL: http://localhost:3000
+Todas las rutas protegidas requieren: Authorization: Bearer <google_id_token>
+
+─── AUTH (público) ───────────────────────────────────────────
+POST   /api/auth/google                    { idToken }
+
+─── CRM CHAT (operador + admin) ─────────────────────────────
+GET    /api/conversations                  → lista todas las conversaciones
+GET    /api/conversations/:id/messages     → mensajes de una conversación
+POST   /api/conversations/:id/messages     { content } → enviar mensaje al cliente
+PUT    /api/conversations/:id/status       { status: "active"|"closed"|"waiting" }
+
+─── DASHBOARD / REPORTES (operador + admin) ─────────────────
+GET    /api/reports/summary                → métricas: clientes totales, pedidos hoy, pagos pendientes, en reparto, entregados
+GET    /api/reports/deliveries             → despachos del día
+
+─── PEDIDOS (operador + admin) ──────────────────────────────
+GET    /api/orders                         ?status=<filtro> → lista pedidos (últimos 200)
+GET    /api/orders/:id                     → detalle del pedido con cliente, producto, pago
+PUT    /api/orders/:id/status              { status, notes? } → cambiar estado
+GET    /api/orders/pending-assignment      ?role=armador|repartidor → pedidos pendientes de asignación
+POST   /api/orders/:id/assign             { operatorId, role } → asignar operador
+POST   /api/orders/:id/self-assign        { role } → auto-asignarse
+PUT    /api/orders/:id/complete-armado     { notes? } → armador confirma armado
+PUT    /api/orders/:id/complete-entrega    { notes? } → repartidor confirma entrega
+GET    /api/orders/:id/assignments         → historial de asignaciones
+
+─── MIS ASIGNACIONES (operador + admin) ─────────────────────
+GET    /api/my-assignments                 → asignaciones activas del operador logueado
+GET    /api/my-assignments/history         ?limit=50 → historial completo
+
+─── CLIENTES (operador + admin) ─────────────────────────────
+GET    /api/clients                        → lista de clientes (role=cliente)
+GET    /api/clients/:id                    → perfil + historial de pedidos
+
+─── PRODUCTOS (solo admin) ──────────────────────────────────
+GET    /api/products                       → lista todos (activos e inactivos)
+POST   /api/products                       { name, price, description?, stock?, imageUrl? }
+PUT    /api/products/:id                   { name?, description?, price?, stock?, imageUrl?, isActive? }
+DELETE /api/products/:id                   → desactiva (isActive=false)
+
+─── SUSCRIPCIONES (solo admin) ──────────────────────────────
+GET    /api/subscriptions                  → lista planes
+POST   /api/subscriptions                  { name, price, frequencyWeeks, description? }
+PUT    /api/subscriptions/:id              { name?, description?, price?, frequencyWeeks?, isActive? }
+
+─── OPERADORES (solo admin) ─────────────────────────────────
+GET    /api/operators                      → lista usuarios con role=operador
+POST   /api/operators                      { contact, firstName, password, lastName? }
+
+─── CONFIGURACIÓN (solo admin) ──────────────────────────────
+GET    /api/config/operating-hours         → horarios por día
+PUT    /api/config/operating-hours         { dayOfWeek, openTime?, closeTime?, deliveryStartTime?, deliveryEndTime?, isActive? }
+GET    /api/config/delivery-zones          → zonas de entrega
+POST   /api/config/delivery-zones          { name, price, isActive? }
+PUT    /api/config/delivery-zones/:id      { name?, price?, isActive? }
+
+================================================================================
+  4. ESTRUCTURA DE PÁGINAS Y NAVEGACIÓN
+================================================================================
+
+LAYOUT: Sidebar + Top bar con perfil Google y notificaciones
+
+RUTAS DE LA APP:
+/login                  → Login con Google (página pública)
+/                       → Dashboard (redirect si no está logueado)
+/orders                 → Lista de pedidos con filtros por estado
+/orders/:id             → Detalle de pedido (timeline de estados, asignaciones)
+/conversations          → CRM Chat (lista de conversaciones + chat abierto)
+/clients                → Lista de clientes
+/clients/:id            → Perfil del cliente + historial de pedidos
+/products               → ABM de productos (solo admin)
+/subscriptions          → ABM de suscripciones (solo admin)
+/operators              → Gestión de operadores (solo admin)
+/settings               → Configuración: horarios + zonas de entrega (solo admin)
+
+================================================================================
+  5. DISEÑO DE CADA PÁGINA
+================================================================================
+
+─── LOGIN ───────────────────────────────────────────────────
+- Fondo con gradiente
+- Logo "Yemas del Sol" centrado
+- Botón "Iniciar sesión con Google" 
+- Si el usuario no tiene acceso, mostrar error
+
+─── DASHBOARD (/) ───────────────────────────────────────────
+- Cards de resumen con GET /api/reports/summary:
+  • Total clientes
+  • Pedidos del día
+  • Pagos pendientes
+  • En reparto
+  • Entregados hoy
+- Tabla de despachos del día con GET /api/reports/deliveries
+- Gráfico de pedidos por estado (usar Recharts)
+
+─── PEDIDOS (/orders) ──────────────────────────────────────
+- Tabs o filtros por estado: Todos | Pago Pendiente | Pagado | Preparando | Listo | En Reparto | Entregado | Cancelado
+- Tabla con columnas: ID corto, Cliente, Producto, Cantidad, Total, Estado (badge de color), Fecha
+- Acciones: Ver detalle, Cambiar estado
+- Cada estado tiene un color/badge diferente:
+  • pending_payment → gris
+  • paid → azul
+  • preparing → amarillo
+  • ready → naranja
+  • delivering → violeta
+  • delivered → verde
+  • cancelled → rojo
+  • rescheduled → celeste
+
+─── DETALLE DE PEDIDO (/orders/:id) ────────────────────────
+- Info del pedido: producto, cantidad, total, dirección, fecha
+- Info del cliente: nombre, teléfono, dirección
+- Info del pago: monto, estado MP, ID MP
+- Timeline vertical de estados (visual)
+- Historial de asignaciones (armador/repartidor)
+- Botones de acción según estado:
+  • Si paid → "Asignar armador" (dropdown de operadores)
+  • Si preparing → "Marcar como armado" (para el operador asignado)
+  • Si ready → "Asignar repartidor" (dropdown)
+  • Si delivering → "Confirmar entrega"
+  • Siempre → "Cambiar estado" (select con todos los estados)
+
+─── CHAT CRM (/conversations) ──────────────────────────────
+- Layout de 2 columnas:
+  • Izquierda: lista de conversaciones con búsqueda
+    - Mostrar: nombre del cliente, último mensaje, fecha, estado (badge)
+    - Indicador de "waiting" (esperando respuesta operador)
+  • Derecha: chat abierto
+    - Burbujas de mensaje (entrante/saliente con distinto color)
+    - Input para escribir + botón enviar
+    - Botón para cambiar estado de conversación
+
+─── CLIENTES (/clients) ────────────────────────────────────
+- Tabla: Nombre, Teléfono, Dirección, Fecha registro, Nro pedidos
+- Buscador por nombre o teléfono
+- Clic en fila → ver perfil
+
+─── PERFIL CLIENTE (/clients/:id) ──────────────────────────
+- Datos del cliente: nombre, teléfono, dirección, ubicación (link a Google Maps)
+- Horario preferido de entrega
+- Historial de pedidos (tabla con estado y fecha)
+
+─── PRODUCTOS (/products) — Solo Admin ─────────────────────
+- Tabla CRUD: Nombre, Precio, Unidad, Estado (activo/inactivo)
+- Modal para crear/editar producto
+- Botón para desactivar producto
+
+─── SUSCRIPCIONES (/subscriptions) — Solo Admin ────────────
+- Tabla CRUD: Nombre, Precio, Frecuencia, Maples por entrega, Estado
+- Modal para crear/editar plan
+
+─── OPERADORES (/operators) — Solo Admin ───────────────────
+- Lista de operadores del sistema
+- Formulario para crear nuevo operador
+- Datos: nombre, contacto (email Google), contraseña
+
+─── CONFIGURACIÓN (/settings) — Solo Admin ─────────────────
+- Sección 1: Horarios de atención
+  • Tabla con los 7 días de la semana
+  • Campos editables: hora apertura, cierre, inicio delivery, fin delivery, activo/inactivo
+- Sección 2: Zonas de entrega
+  • Tabla CRUD: Nombre de zona, Precio de envío, Estado
+  • Modal para crear/editar zona
+
+================================================================================
+  6. FLUJO DE ESTADOS DE PEDIDO (para el timeline visual)
+================================================================================
+
+pending_payment → paid → preparing → ready → delivering → delivered
+                                                          ↘ rescheduled
+                          (cualquier estado) → cancelled
+
+El flujo normal es:
+1. Cliente paga → "paid"
+2. Armador se asigna → "preparing" 
+3. Armador confirma consolidado → "ready" (todos los pedidos paid → ready)
+4. Repartidor se asigna → "delivering" (se notifica al cliente)
+5. Repartidor confirma entrega → "delivered"
+
+================================================================================
+  7. COMPONENTES REUTILIZABLES A CREAR
+================================================================================
+
+- <AuthProvider>         → Context de autenticación Google
+- <ProtectedRoute>       → HOC para rutas protegidas
+- <AdminRoute>           → HOC para rutas solo admin
+- <Sidebar>              → Navegación lateral
+- <TopBar>               → Barra superior con avatar, nombre y logout
+- <StatusBadge>          → Badge con color según estado del pedido
+- <DataTable>            → Tabla genérica con paginación y búsqueda
+- <Modal>                → Modal reutilizable para formularios
+- <StatCard>             → Card de estadística del dashboard
+- <OrderTimeline>        → Timeline visual de estados del pedido
+- <ChatBubble>           → Burbuja de mensaje (in/out)
+- <ConversationList>     → Lista de conversaciones del CRM
+- <LoadingSpinner>       → Spinner de carga
+- <EmptyState>           → Componente para cuando no hay datos
+- <ConfirmDialog>        → Diálogo de confirmación para acciones destructivas
+
+================================================================================
+  8. ESTÉTICA Y DISEÑO
+================================================================================
+
+PALETA DE COLORES (tema "Yemas del Sol"):
+- Primary: Amarillo dorado (#F59E0B / amber-500)
+- Primary Dark: Ámbar oscuro (#D97706)
+- Secondary: Naranja cálido (#EA580C)
+- Background: Blanco (#FFFFFF) y Gris claro (#F9FAFB)
+- Sidebar: Gris oscuro (#1F2937) o Slate (#0F172A)
+- Text: Gris carbón (#111827)
+- Success: Verde (#10B981)
+- Error: Rojo (#EF4444)
+- Warning: Amarillo (#F59E0B)
+- Info: Azul (#3B82F6)
+
+TIPOGRAFÍA: Inter (Google Fonts)
+
+PRINCIPIOS:
+- Dark sidebar con ítems que iluminan al pasar el mouse
+- Cards con sombra suave y bordes redondeados
+- Transiciones suaves en hover y focus
+- Badges de colores para estados
+- Loading skeletons mientras cargan datos
+- Responsive (funcionar en tablets y desktop)
+- Toast notifications para acciones exitosas/errores
+
+================================================================================
+  9. ESTRUCTURA DE CARPETAS SUGERIDA
+================================================================================
+
+frontend/
+├── public/
+│   └── favicon.ico
+├── src/
+│   ├── api/
+│   │   └── axiosClient.js         (instancia Axios con interceptors)
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── TopBar.jsx
+│   │   │   └── MainLayout.jsx
+│   │   ├── ui/
+│   │   │   ├── StatusBadge.jsx
+│   │   │   ├── DataTable.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── StatCard.jsx
+│   │   │   ├── LoadingSpinner.jsx
+│   │   │   ├── EmptyState.jsx
+│   │   │   └── ConfirmDialog.jsx
+│   │   ├── orders/
+│   │   │   └── OrderTimeline.jsx
+│   │   └── chat/
+│   │       ├── ChatBubble.jsx
+│   │       └── ConversationList.jsx
+│   ├── context/
+│   │   └── AuthContext.jsx
+│   ├── hooks/
+│   │   ├── useAuth.js
+│   │   └── useFetch.js
+│   ├── pages/
+│   │   ├── Login.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── Orders.jsx
+│   │   ├── OrderDetail.jsx
+│   │   ├── Conversations.jsx
+│   │   ├── Clients.jsx
+│   │   ├── ClientDetail.jsx
+│   │   ├── Products.jsx
+│   │   ├── Subscriptions.jsx
+│   │   ├── Operators.jsx
+│   │   └── Settings.jsx
+│   ├── routes/
+│   │   ├── AppRouter.jsx
+│   │   ├── ProtectedRoute.jsx
+│   │   └── AdminRoute.jsx
+│   ├── utils/
+│   │   ├── constants.js
+│   │   └── formatters.js
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+├── .env
+├── index.html
+├── tailwind.config.js
+├── postcss.config.js
+├── vite.config.js
+└── package.json
+
+================================================================================
+  10. CONFIGURACIÓN INICIAL
+================================================================================
+
+1. Crear proyecto Vite:
+   npx -y create-vite@latest frontend --template react
+
+2. Instalar dependencias:
+   cd frontend
+   npm install react-router-dom axios @react-oauth/google recharts lucide-react
+   npm install -D tailwindcss @tailwindcss/vite
+
+3. Configurar Tailwind en vite.config.js:
+   import tailwindcss from '@tailwindcss/vite'
+   export default defineConfig({
+     plugins: [react(), tailwindcss()],
+   })
+
+4. En index.css:
+   @import "tailwindcss";
+
+5. Variables de entorno (.env):
+   VITE_API_URL=http://localhost:3000
+   VITE_GOOGLE_CLIENT_ID=tu-client-id-aqui
+
+6. Proxy en vite.config.js (para evitar CORS en desarrollo):
+   server: {
+     proxy: {
+       '/api': 'http://localhost:3000'
+     }
+   }
+
+================================================================================
+  11. NOTAS IMPORTANTES
+================================================================================
+
+- El backend ya tiene CORS configurado para CRM_FRONTEND_URL (http://localhost:5173)
+- La autenticación usa Google ID Tokens directamente (no JWT propio)
+- El token de Google expira cada ~1 hora. Manejar el refresh silencioso
+- Los IDs son UUID. Mostrar solo los primeros 8 caracteres en la UI
+- Montos en pesos argentinos (ARS). Formatear con separador de miles punto y coma para decimales
+- Fechas en timezone America/Argentina/Buenos_Aires, formato dd/mm/yyyy
+- El backend corre en puerto 3000, el frontend en 5173
+
+================================================================================
