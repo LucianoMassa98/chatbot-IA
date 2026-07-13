@@ -1,6 +1,7 @@
 const { app, initializeDatabase, initializeFlows } = require('./app');
 const logger = require('./config/logger');
 const env = require('./config/env'); // role-based flows added
+const scheduler = require('./services/schedulerService');
 
 /**
  * Start server
@@ -12,6 +13,9 @@ const startServer = async () => {
 
     // Initialize flows
     initializeFlows();
+
+    // Start background scheduler (renewal reminders + weekly delivery generation)
+    scheduler.start();
 
     // Start HTTP server
     const server = app.listen(env.PORT, () => {
@@ -36,6 +40,7 @@ const startServer = async () => {
      */
     process.on('SIGTERM', () => {
       logger.info('SIGTERM signal received: closing HTTP server');
+      scheduler.stop();
       server.close(() => {
         logger.info('HTTP server closed');
       });

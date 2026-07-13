@@ -132,20 +132,176 @@ class NotificationService {
   }
 
   /**
-   * 🔔 Subscription reminder (24 hours before next delivery)
+   * 🔔 Subscription renewal reminder (3 days before period end)
    * @param {object} user
-   * @param {object} subscription - Subscription model instance
-   * @param {Date}   nextDelivery
+   * @param {object} userSubscription - UserSubscription instance with plan loaded
    */
-  async sendSubscriptionReminder(user, subscription, nextDelivery) {
+  async sendSubscriptionRenewalReminder(user, userSubscription) {
+    const plan = userSubscription.plan;
+    const endDate = this._formatDeliveryDate(userSubscription.currentPeriodEnd);
     const msg =
-      `🔔 *Recordatorio de suscripción*\n\n` +
-      `Hola ${user.firstName || ''}! Mañana te entregamos tu pedido del plan *${subscription.name}*.\n\n` +
-      `📦 ${subscription.maplesQuantity} maple(s)\n` +
-      `📍 ${user.address || 'tu domicilio'}\n` +
-      `🕐 ${this._formatDateTime(nextDelivery)}\n\n` +
-      `Si necesitás reprogramar, respondé este mensaje.`;
+      `🔔 *Recordatorio de renovación*\n\n` +
+      `Hola ${user.firstName || ''}! Tu suscripción *${plan?.name || 'Yemas del Sol'}* ` +
+      `vence el *${endDate}*.\n\n` +
+      `📦 ${plan?.maplesQuantity} maple(s) por entrega\n` +
+      `💰 $${Number(plan?.price).toLocaleString('es-AR')} por mes\n\n` +
+      `En los próximos días recibirás el link de pago para renovar. ` +
+      `Si tenés alguna consulta, respondé este mensaje. 🥚`;
     await this._send(user, msg);
+  }
+
+  /**
+   * 💳 Send renewal payment link when period ends
+   * @param {object} user
+   * @param {object} userSubscription
+   * @param {string} paymentLink
+   */
+  async sendSubscriptionRenewalPaymentLink(user, userSubscription, paymentLink) {
+    const plan = userSubscription.plan;
+    const msg =
+      `💳 *¡Es hora de renovar tu suscripción!*\n\n` +
+      `Hola ${user.firstName || ''}! Tu plan *${plan?.name || 'Yemas del Sol'}* ` +
+      `está listo para renovarse.\n\n` +
+      `Para continuar recibiendo tus maples, realizá el pago mensual:\n\n` +
+      `🔗 ${paymentLink}\n\n` +
+      `💰 Monto: $${Number(plan?.price).toLocaleString('es-AR')}\n\n` +
+      `Tenés *3 días* para completar el pago. ¡Gracias por confiar en Yemas del Sol! 🥚`;
+    await this._send(user, msg);
+  }
+
+  /**
+   * ✅ Subscription activated after first payment
+   * @param {object} user
+   * @param {object} userSubscription
+   * @param {object} plan
+   * @param {Date} firstDelivery
+   */
+  async sendSubscriptionActivated(user, userSubscription, plan, firstDelivery) {
+    const freqLabel = { weekly: 'semanal', biweekly: 'cada 14 días', monthly: 'mensual' }[plan.frequency] || plan.frequency;
+    const deliveryDate = this._formatDeliveryDate(firstDelivery);
+    const msg =
+      `🎉 *¡Tu suscripción está activa!*\n\n` +
+      `Hola ${user.firstName || ''}! Confirmamos tu suscripción a *${plan.name}*.\n\n` +
+      `📦 ${plan.maplesQuantity} maple(s) por entrega\n` +
+      `🔄 Frecuencia de entrega: ${freqLabel}\n` +
+      `📅 Primera entrega: *${deliveryDate}*\n` +
+      `💰 Precio mensual: $${Number(plan.price).toLocaleString('es-AR')}\n\n` +
+      `Te avisaremos cada vez que se genere una entrega. ¡Bienvenido/a! 🥚`;
+    await this._send(user, msg);
+  }
+
+  /**
+   * 🔄 Subscription renewed for the next period
+   * @param {object} user
+   * @param {object} userSubscription
+   * @param {object} plan
+   */
+  async sendSubscriptionRenewed(user, userSubscription, plan) {
+    const endDate = this._formatDeliveryDate(userSubscription.currentPeriodEnd);
+    const msg =
+      `✅ *¡Suscripción renovada!*\n\n` +
+      `Hola ${user.firstName || ''}! Tu plan *${plan.name}* fue renovado con éxito.\n\n` +
+      `📅 Nuevo período: hasta el *${endDate}*\n` +
+      `📦 ${plan.maplesQuantity} maple(s) por entrega\n\n` +
+      `Seguirás recibiendo tus entregas según tu frecuencia habitual. ¡Gracias! 🥚`;
+    await this._send(user, msg);
+  }
+
+  /**
+   * ❌ Subscription expired (no payment received within grace period)
+   * @param {object} user
+   * @param {object} userSubscription
+   */
+  async sendSubscriptionExpired(user, userSubscription) {
+    const plan = userSubscription.plan;
+    const msg =
+      `⚠️ *Tu suscripción ha vencido*\n\n` +
+      `Hola ${user.firstName || ''}! Tu plan *${plan?.name || 'Yemas del Sol'}* venció y no ` +
+      `recibimos el pago de renovación dentro del período de gracia.\n\n` +
+      `Se suspenderán las entregas hasta que renueves tu suscripción.\n\n` +
+      `Para volver a suscribirte, escribinos *SUSCRIPCION* y elegí tu plan. 🥚`;
+    await this._send(user, msg);
+  }
+
+  /**
+   * 🚫 Subscription cancelled
+   * @param {object} user
+   * @param {object} userSubscription
+   */
+  async sendSubscriptionCancelled(user, userSubscription) {
+    const plan = userSubscription.plan;
+    const msg =
+      `🚫 *Suscripción cancelada*\n\n` +
+      `Hola ${user.firstName || ''}! Tu suscripción *${plan?.name || 'Yemas del Sol'}* fue cancelada.\n\n` +
+      `Si querés volver a suscribirte en el futuro, escribinos *SUSCRIPCION*. ` +
+      `Gracias por haber sido parte de Yemas del Sol. 🥚`;
+    await this._send(user, msg);
+  }
+
+  /**
+   * 📦 Notify customer that their weekly delivery order was generated
+   * @param {object} user
+   * @param {object} plan - Subscription plan
+   * @param {object} order - The delivery Order created
+   */
+  async sendWeeklyDeliveryNotification(user, plan, order) {
+    const deliveryDate = order.estimatedDelivery
+      ? this._formatDeliveryDate(order.estimatedDelivery)
+      : 'a confirmar';
+    const msg =
+      `📦 *¡Tu entrega semanal está en proceso!*\n\n` +
+      `Hola ${user.firstName || ''}! Esta semana recibirás tu pedido del plan *${plan?.name}*.\n\n` +
+      `📦 ${plan?.maplesQuantity} maple(s)\n` +
+      `📍 ${order.deliveryAddress || user.address || 'tu domicilio'}\n` +
+      `📅 Fecha estimada: *${deliveryDate}*\n\n` +
+      `Te avisaremos cuando el pedido esté en camino. 🥚`;
+    await this._send(user, msg);
+  }
+
+  /**
+   * 🔔 Notify all armadores and repartidores about the weekly batch of new delivery orders
+   * @param {object[]} orders - Array of newly created delivery Order instances
+   */
+  async sendWeeklyOperatorsAlert(orders) {
+    const { User } = require('../models');
+
+    const totalMaples = orders.reduce((sum, o) => sum + (o.quantity || 0), 0);
+    const weekLabel = new Date().toLocaleString('es-AR', {
+      weekday: 'long', day: 'numeric', month: 'long',
+      timeZone: 'America/Argentina/Buenos_Aires',
+    });
+
+    const baseMsg =
+      `📅 *Entregas semanales generadas — ${weekLabel}*\n\n` +
+      `Se generaron *${orders.length} pedido${orders.length !== 1 ? 's' : ''}* ` +
+      `de suscripción para esta semana.\n` +
+      `📦 Total: ${totalMaples} maple${totalMaples !== 1 ? 's' : ''}\n\n` +
+      `Ingresá al *PANEL* para ver el detalle y comenzar a armar.`;
+
+    // Notify armadores
+    const armadores = await User.findAll({ where: { role: 'armador', isActive: true } });
+    for (const armador of armadores) {
+      try {
+        await this._send(armador, baseMsg);
+      } catch (err) {
+        logger.warn(`Failed to notify armador ${armador.id}: ${err.message}`);
+      }
+    }
+
+    // Notify repartidores (they can see what's coming)
+    const repartidores = await User.findAll({ where: { role: 'repartidor', isActive: true } });
+    const repMsg =
+      `📅 *Entregas semanales — ${weekLabel}*\n\n` +
+      `Esta semana hay *${orders.length} entrega${orders.length !== 1 ? 's' : ''}* de suscripción programadas.\n` +
+      `📦 Total: ${totalMaples} maple${totalMaples !== 1 ? 's' : ''}\n\n` +
+      `Los pedidos aparecerán en el *PANEL* una vez armados. ¡Prepará la ruta! 🚗`;
+    for (const repartidor of repartidores) {
+      try {
+        await this._send(repartidor, repMsg);
+      } catch (err) {
+        logger.warn(`Failed to notify repartidor ${repartidor.id}: ${err.message}`);
+      }
+    }
   }
 
   /**

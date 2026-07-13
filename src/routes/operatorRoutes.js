@@ -3,6 +3,7 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
 const crm = require('../controllers/crmController');
 const assignments = require('../controllers/assignmentController');
+const subscriptionCtrl = require('../controllers/subscriptionController');
 
 /**
  * @swagger
@@ -421,6 +422,54 @@ router.get('/clients', crm.getClients);
  *         description: Cliente no encontrado.
  */
 router.get('/clients/:id', crm.getClient);
+
+// ─── Subscription Visibility (read-only for operators) ───
+
+/**
+ * @swagger
+ * /api/user-subscriptions:
+ *   get:
+ *     summary: Ver suscripciones activas (operador)
+ *     description: Listado de suscripciones de clientes visible para operadores. Filtrar por ?status=.
+ *     tags: [Operator]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filtrar por estado.
+ *     responses:
+ *       200:
+ *         description: Lista obtenida con éxito.
+ */
+router.get('/user-subscriptions', subscriptionCtrl.listUserSubscriptions);
+
+/**
+ * @swagger
+ * /api/clients/{id}/subscriptions:
+ *   get:
+ *     summary: Ver suscripciones de un cliente
+ *     description: Devuelve todas las instancias de suscripción (activas e históricas) de un cliente específico.
+ *     tags: [Operator]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID del cliente.
+ *     responses:
+ *       200:
+ *         description: Suscripciones del cliente obtenidas con éxito.
+ *       404:
+ *         description: Cliente no encontrado.
+ */
+router.get('/clients/:id/subscriptions', subscriptionCtrl.getSubscriptionsByClient);
 
 module.exports = router;
 

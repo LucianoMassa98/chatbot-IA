@@ -3,58 +3,47 @@ const logger = require('../config/logger');
 const AppError = require('../utils/AppError');
 const mercadoPagoService = require('./mercadoPagoService');
 const notificationService = require('./notificationService');
+// Loaded lazily to avoid circular dependency with subscriptionFlow
+const getLifecycleService = () => require('./subscriptionLifecycleService');
 
 /**
  * Order Service
  * Manages the full order lifecycle for Yemas del Sol.
  */
 class OrderService {
-  /**
-   * Create a new single-product order and its associated Payment record.
-   * Returns the order with the Mercado Pago payment link.
-   * NOTE: The order remains in 'pending_payment' until MP webhook confirms.
-   *
-   * @param {string} userId
-   * @param {string} productId
-   * @param {number} quantity
-   * @returns {{ order, payment }}
-   */
-  async createProductOrder(userId, productId, quantity = 1) {
-    const product = await Product.findByPk(productId);
-    if (!product || !product.isActive) {
-      throw new AppError('Producto no disponible.', 404);
-    }
-
-    const user = await User.findByPk(userId);
-    const total = Number(product.price) * quantity;
-
-    const order = await Order.create({
-      userId,
-      productId,
-      type: 'single',
-      status: 'pending_payment',
-      quantity,
-      total,
-      deliveryAddress: user.address,
-    });
-
-    const { preferenceId, paymentLink } = await mercadoPagoService.createPreference(
-      order,
-      user,
-      `${product.name} x${quantity}`,
-    );
-
-    const payment = await Payment.create({
-      orderId: order.id,
-      preferenceId,
-      paymentLink,
-      status: 'pending',
-      amount: total,
-    });
-
-    logger.info('Product order created', { orderId: order.id, userId, productId });
-    return { order, payment };
-  }
+  // ─── COMPRA DE PRODUCTO INDIVIDUAL — DESHABILITADA ─────────────────────────
+  // El bot opera exclusivamente con suscripciones.
+  // Para reactivar, descomentar este método y volver a registrar la lógica en salesFlow.js.
+  //
+  // async createProductOrder(userId, productId, quantity = 1) {
+  //   const product = await Product.findByPk(productId);
+  //   if (!product || !product.isActive) {
+  //     throw new AppError('Producto no disponible.', 404);
+  //   }
+  //   const user = await User.findByPk(userId);
+  //   const total = Number(product.price) * quantity;
+  //   const order = await Order.create({
+  //     userId,
+  //     productId,
+  //     type: 'single',
+  //     status: 'pending_payment',
+  //     quantity,
+  //     total,
+  //     deliveryAddress: user.address,
+  //   });
+  //   const { preferenceId, paymentLink } = await mercadoPagoService.createPreference(
+  //     order, user, `${product.name} x${quantity}`,
+  //   );
+  //   const payment = await Payment.create({
+  //     orderId: order.id,
+  //     preferenceId,
+  //     paymentLink,
+  //     status: 'pending',
+  //     amount: total,
+  //   });
+  //   logger.info('Product order created', { orderId: order.id, userId, productId });
+  //   return { order, payment };
+  // }
 
   /**
    * Create a new subscription order.
@@ -202,19 +191,27 @@ class OrderService {
         logger.warn(`Notification error after payment: ${e.message}`);
       }
 
-      // Notify all armadores about the new paid order + consolidated pending
-      try {
-        // Reload order with associations for notification context
-        const fullOrder = await Order.findByPk(order.id, {
-          include: [
-            { association: 'user' },
-            { association: 'product' },
-            { association: 'subscription' },
-          ],
-        });
-        await notificationService.notifyArmadoresNewOrder(fullOrder);
-      } catch (e) {
-        logger.warn(`Failed to notify armadores for order ${orderId}: ${e.message}`);
+      // If this is a subscription order, activate/renew via lifecycle service
+      if (order.type === 'subscription') {
+        try {
+          await getLifecycleService().handleSubscriptionPaymentWebhook(order.id);
+        } catch (e) {
+          logger.warn(`Subscription lifecycle hook failed for order ${orderId}: ${e.message}`);
+        }
+      } else {
+        // Single-product order: notify armadores
+        try {
+          const fullOrder = await Order.findByPk(order.id, {
+            include: [
+              { association: 'user' },
+              { association: 'product' },
+              { association: 'subscription' },
+            ],
+          });
+          await notificationService.notifyArmadoresNewOrder(fullOrder);
+        } catch (e) {
+          logger.warn(`Failed to notify armadores for order ${orderId}: ${e.message}`);
+        }
       }
 
       logger.info('Order marked as paid after MP approval', { orderId, mpPaymentId, estimatedDelivery: deliveryInfo.date });

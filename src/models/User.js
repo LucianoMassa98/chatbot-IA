@@ -91,6 +91,10 @@ module.exports = (sequelize) => {
       foreignKey: 'operator_id',
       as: 'assignments',
     });
+    User.hasMany(models.UserSubscription, {
+      foreignKey: 'user_id',
+      as: 'userSubscriptions',
+    });
   };
 
   return User;

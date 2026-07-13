@@ -57,18 +57,9 @@ const menuFlow = {
     1: async (userMessage, sessionContext) => {
       const msg = userMessage.toLowerCase().trim();
 
-      // Coincidencia por texto o por ID de botón interactivo
-      if (msg.includes('1') || msg.includes('comprar') || msg.includes('producto') || msg.includes('compra')) {
-        return {
-          response: null,
-          nextStep: null,
-          context: {},
-          shouldResetFlow: true,
-          redirectFlow: 'compra',
-        };
-      }
-
-      if (msg.includes('2') || msg.includes('suscripci')) {
+      // Opción 1 o 2 → suscripciones (compra individual deshabilitada)
+      if (msg.includes('1') || msg.includes('comprar') || msg.includes('producto') || msg.includes('compra') ||
+          msg.includes('2') || msg.includes('suscripci')) {
         return {
           response: null,
           nextStep: null,
@@ -78,7 +69,7 @@ const menuFlow = {
         };
       }
 
-      if (msg.includes('3') || msg.includes('pedido')) {
+      if (msg.includes('3') || msg.includes('2') || msg.includes('pedido')) {
         return {
           response: null,
           nextStep: null,
@@ -88,7 +79,7 @@ const menuFlow = {
         };
       }
 
-      if (msg.includes('4') || msg.includes('direcci')) {
+      if (msg.includes('4') || msg.includes('3') || msg.includes('direcci')) {
         return {
           response: null,
           nextStep: null,
@@ -98,7 +89,7 @@ const menuFlow = {
         };
       }
 
-      if (msg.includes('5') || msg.includes('reprogramar')) {
+      if (msg.includes('5') || msg.includes('4') || msg.includes('reprogramar')) {
         return {
           response: null,
           nextStep: null,
@@ -108,7 +99,7 @@ const menuFlow = {
         };
       }
 
-      if (msg.includes('6') || msg.includes('operador') || msg.includes('humano') || msg.includes('persona') || msg.includes('support')) {
+      if (msg.includes('6') || msg.includes('5') || msg.includes('operador') || msg.includes('humano') || msg.includes('persona') || msg.includes('support')) {
         return {
           response: null,
           nextStep: null,
@@ -199,12 +190,11 @@ const menuFlow = {
 function buildMainMenuText() {
   return (
     'Seleccioná una opción:\n\n' +
-    '1️⃣ Comprar maples de huevos\n' +
-    '2️⃣ Ver planes de suscripción\n' +
-    '3️⃣ Consultar mis pedidos\n' +
-    '4️⃣ Cambiar dirección de entrega\n' +
-    '5️⃣ Reprogramar una entrega\n' +
-    '6️⃣ Hablar con un operador\n\n' +
+    '1️⃣ Ver planes de suscripción\n' +
+    '2️⃣ Consultar mis pedidos\n' +
+    '3️⃣ Cambiar dirección de entrega\n' +
+    '4️⃣ Reprogramar una entrega\n' +
+    '5️⃣ Hablar con un operador\n\n' +
     '_Respondé con el número o el nombre de la opción._'
   );
 }
@@ -228,8 +218,7 @@ function buildMainMenuInteractive() {
         {
           title: 'Menú Principal',
           rows: [
-            { id: 'compra', title: '🛒 Comprar maples', description: 'Comprar maples de huevos frescos' },
-            { id: 'suscripcion', title: '📦 Suscripciones', description: 'Ver planes de suscripción quincenales' },
+            { id: 'suscripcion', title: '📦 Suscripciones', description: 'Ver y contratar planes mensuales de maples' },
             { id: 'pedidos', title: '📋 Mis pedidos', description: 'Consultar el estado de tus pedidos' },
             { id: 'cambiar_direccion', title: '📍 Cambiar dirección', description: 'Modificar tu dirección de entrega' },
             { id: 'reprogramar', title: '⏰ Reprogramar entrega', description: 'Cambiar fecha u hora de entrega' },

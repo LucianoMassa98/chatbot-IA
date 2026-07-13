@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware, roleGuard } = require('../middleware/authMiddleware');
 const crm = require('../controllers/crmController');
+const subscriptionCtrl = require('../controllers/subscriptionController');
 
 /**
  * @swagger
@@ -401,5 +402,173 @@ router.post('/config/delivery-zones', crm.createDeliveryZone);
  *         description: Zona no encontrada.
  */
 router.put('/config/delivery-zones/:id', crm.updateDeliveryZone);
+
+// ─── User Subscriptions (Active Instances) ────────────────
+
+/**
+ * @swagger
+ * /api/user-subscriptions:
+ *   get:
+ *     summary: Listar suscripciones activas de clientes
+ *     description: Devuelve todas las instancias de suscripción de clientes. Filtrar por ?status=active|paused|expired|cancelled|pending_payment.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending_payment, active, paused, expired, cancelled]
+ *         description: Filtrar por estado de la suscripción.
+ *     responses:
+ *       200:
+ *         description: Lista obtenida con éxito.
+ */
+router.get('/user-subscriptions', subscriptionCtrl.listUserSubscriptions);
+
+/**
+ * @swagger
+ * /api/user-subscriptions/trigger-weekly-deliveries:
+ *   post:
+ *     summary: Disparar generación de entregas semanales manualmente
+ *     description: Ejecuta el job de generación de pedidos semanales para todas las suscripciones activas. Útil para pruebas o emergencias.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Job ejecutado exitosamente.
+ */
+router.post('/user-subscriptions/trigger-weekly-deliveries', subscriptionCtrl.triggerWeeklyDeliveries);
+
+/**
+ * @swagger
+ * /api/user-subscriptions/{id}:
+ *   get:
+ *     summary: Detalle de una suscripción activa
+ *     description: Devuelve el estado completo de una instancia de suscripción, incluyendo historial de entregas.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la UserSubscription.
+ *     responses:
+ *       200:
+ *         description: Detalle obtenido con éxito.
+ *       404:
+ *         description: Suscripción no encontrada.
+ */
+router.get('/user-subscriptions/:id', subscriptionCtrl.getUserSubscription);
+
+/**
+ * @swagger
+ * /api/user-subscriptions/{id}/cancel:
+ *   put:
+ *     summary: Cancelar una suscripción de cliente
+ *     description: Cancela la suscripción y notifica al cliente por WhatsApp.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la UserSubscription.
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *                 description: Motivo de cancelación (opcional).
+ *     responses:
+ *       200:
+ *         description: Suscripción cancelada exitosamente.
+ *       404:
+ *         description: Suscripción no encontrada.
+ */
+router.put('/user-subscriptions/:id/cancel', subscriptionCtrl.cancelUserSubscription);
+
+/**
+ * @swagger
+ * /api/user-subscriptions/{id}/pause:
+ *   put:
+ *     summary: Pausar una suscripción de cliente
+ *     description: Pausa la suscripción. Los pedidos semanales dejan de generarse hasta que se reactive.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Suscripción pausada exitosamente.
+ */
+router.put('/user-subscriptions/:id/pause', subscriptionCtrl.pauseUserSubscription);
+
+/**
+ * @swagger
+ * /api/user-subscriptions/{id}/resume:
+ *   put:
+ *     summary: Reactivar una suscripción pausada
+ *     description: Reactiva una suscripción pausada y recalcula la próxima fecha de entrega.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Suscripción reactivada exitosamente.
+ */
+router.put('/user-subscriptions/:id/resume', subscriptionCtrl.resumeUserSubscription);
+
+/**
+ * @swagger
+ * /api/user-subscriptions/{id}/force-renew:
+ *   post:
+ *     summary: Generar manualmente una orden de renovación
+ *     description: Crea una nueva orden de pago para el próximo mes y envía el link al cliente. Útil si el webhook de Mercado Pago no se disparó correctamente.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       201:
+ *         description: Orden de renovación generada exitosamente.
+ *       400:
+ *         description: La suscripción no está en estado válido para renovar.
+ *       404:
+ *         description: Suscripción no encontrada.
+ */
+router.post('/user-subscriptions/:id/force-renew', subscriptionCtrl.forceRenewSubscription);
 
 module.exports = router;

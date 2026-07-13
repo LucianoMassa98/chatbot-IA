@@ -442,7 +442,8 @@ class AssignmentService {
   }
 
   /**
-   * Validate that a user exists, is active, and has the 'operador' role.
+   * Validate that a user exists, is active, and has an operator-level role.
+   * Valid roles: 'armador', 'repartidor', 'administrador'.
    * @private
    */
   async _validateOperator(operatorId) {
@@ -452,8 +453,12 @@ class AssignmentService {
       throw new AppError('Operador no encontrado.', 404);
     }
 
-    if (operator.role !== 'operador' && operator.role !== 'administrador') {
-      throw new AppError('El usuario no tiene rol de operador.', 400);
+    const validRoles = ['armador', 'repartidor', 'administrador'];
+    if (!validRoles.includes(operator.role)) {
+      throw new AppError(
+        `El usuario no tiene un rol de operador válido. Rol actual: "${operator.role}".`,
+        400,
+      );
     }
 
     if (!operator.isActive) {
