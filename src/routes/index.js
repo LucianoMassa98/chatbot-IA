@@ -7,6 +7,7 @@ const mercadoPagoRoutes = require('./mercadoPagoRoutes');
 const crmRoutes = require('./crmRoutes');
 const adminRoutes = require('./adminRoutes');
 const operatorRoutes = require('./operatorRoutes');
+const integrationRoutes = require('./integrationRoutes');
 
 const router = express.Router();
 
@@ -17,9 +18,10 @@ router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 router.use('/webhook', webhookRoutes);
 router.use('/webhook', mercadoPagoRoutes);
 
-// API routes (CRM, Admin, Operator)
+// API routes (CRM, Admin, Operator, Integrations)
 router.use('/api', crmRoutes);
 router.use('/api', adminRoutes);
 router.use('/api', operatorRoutes);
+router.use('/api/integrations', integrationRoutes);
 
 module.exports = router;

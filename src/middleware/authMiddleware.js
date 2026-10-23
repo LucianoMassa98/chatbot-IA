@@ -34,24 +34,13 @@ const authMiddleware = async (req, res, next) => {
     });
 
     const payload = ticket.getPayload();
-    const email = payload.email;
+    const { email } = payload;
 
     if (!email) {
       return res.status(401).json({ success: false, message: 'Token de Google inválido.' });
     }
 
-    // Look up staff user by email stored in metadata.email
-    // (Operators/admins are created by the administrator with their Google email)
-    const user = await User.findOne({
-      where: { isActive: true },
-    });
-
-    // Find by google email in metadata
-    const staffUser = await User.findOne({
-      where: { isActive: true },
-    });
-
-    // Direct query filtering by metadata email (Sequelize JSONB)
+    // Look up staff user by email stored in metadata.googleEmail (JSONB)
     const { Op } = require('sequelize');
     const matchedUser = await User.findOne({
       where: {
@@ -75,7 +64,7 @@ const authMiddleware = async (req, res, next) => {
       firstName: matchedUser.firstName,
     };
 
-    logger.info(`CRM access granted to ${email} (role: ${matchedUser.role})`);
+    logger.debug(`CRM access granted to ${email} (role: ${matchedUser.role})`);
     next();
   } catch (error) {
     logger.warn(`Auth middleware error: ${error.message}`);

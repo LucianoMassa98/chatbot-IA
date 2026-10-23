@@ -1,5 +1,7 @@
-const { Order, User, OrderAssignment, Product, Subscription } = require('../models');
 const { Op } = require('sequelize');
+const {
+  Order, User, OrderAssignment, Product, Subscription,
+} = require('../models');
 const logger = require('../config/logger');
 const AppError = require('../utils/AppError');
 const notificationService = require('./notificationService');
@@ -255,7 +257,7 @@ class AssignmentService {
   async selfAssign(orderId, operatorId, role) {
     if (role === 'armador') {
       return this.assignArmador(orderId, operatorId);
-    } else if (role === 'repartidor') {
+    } if (role === 'repartidor') {
       return this.assignRepartidor(orderId, operatorId);
     }
     throw new AppError(`Rol inválido: ${role}. Debe ser "armador" o "repartidor".`, 400);

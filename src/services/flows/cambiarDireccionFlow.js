@@ -1,6 +1,6 @@
+const { Op } = require('sequelize');
 const logger = require('../../config/logger');
 const { User, Order } = require('../../models');
-const { Op } = require('sequelize');
 
 /**
  * Cambiar Dirección Flow — Permite al usuario actualizar su dirección de entrega
@@ -39,10 +39,10 @@ const cambiarDireccionFlow = {
 
       return {
         response:
-          `📍 *Tu dirección actual:*\n` +
-          `${currentAddress}${locationInfo}\n\n` +
-          `Ingresá tu *nueva dirección de entrega* o compartinos tu *ubicación* de WhatsApp / enlace de Google Maps 📍\n\n` +
-          `_Escribí *CANCELAR* para volver al menú._`,
+          '📍 *Tu dirección actual:*\n'
+          + `${currentAddress}${locationInfo}\n\n`
+          + 'Ingresá tu *nueva dirección de entrega* o compartinos tu *ubicación* de WhatsApp / enlace de Google Maps 📍\n\n'
+          + '_Escribí *CANCELAR* para volver al menú._',
         nextStep: 1,
         context: { previousAddress: currentAddress },
       };
@@ -74,19 +74,19 @@ const cambiarDireccionFlow = {
         };
       }
 
-      const isMapUrl = msg.includes('maps.google.com') ||
-                       msg.includes('maps.app.goo.gl') ||
-                       msg.includes('goo.gl/maps');
+      const isMapUrl = msg.includes('maps.google.com')
+                       || msg.includes('maps.app.goo.gl')
+                       || msg.includes('goo.gl/maps');
 
       const displayAddress = isMapUrl ? '📎 Ubicación de Google Maps' : msg;
       const previousAddress = sessionContext.context.previousAddress || 'No registrada';
 
       return {
         response:
-          `📋 *Confirmá el cambio de dirección:*\n\n` +
-          `📍 Anterior: ${previousAddress}\n` +
-          `📍 Nueva: ${displayAddress}\n\n` +
-          `¿Confirmás el cambio? Respondé *SÍ* o *NO*.`,
+          '📋 *Confirmá el cambio de dirección:*\n\n'
+          + `📍 Anterior: ${previousAddress}\n`
+          + `📍 Nueva: ${displayAddress}\n\n`
+          + '¿Confirmás el cambio? Respondé *SÍ* o *NO*.',
         nextStep: 2,
         context: {
           ...sessionContext.context,
@@ -172,9 +172,9 @@ const cambiarDireccionFlow = {
 
         return {
           response:
-            `✅ *¡Dirección actualizada con éxito!*\n\n` +
-            `📍 Nueva dirección: ${displayAddress}${ordersMsg}\n\n` +
-            `Todas tus próximas entregas se enviarán a esta dirección. 🚗`,
+            '✅ *¡Dirección actualizada con éxito!*\n\n'
+            + `📍 Nueva dirección: ${displayAddress}${ordersMsg}\n\n`
+            + 'Todas tus próximas entregas se enviarán a esta dirección. 🚗',
           nextStep: null,
           context: {},
           shouldResetFlow: true,

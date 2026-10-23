@@ -1,6 +1,6 @@
+const { Op } = require('sequelize');
 const logger = require('../../config/logger');
 const { Order, User } = require('../../models');
-const { Op } = require('sequelize');
 const orderService = require('../orderService');
 
 /**
@@ -21,7 +21,7 @@ const reprogramarFlow = {
      * Step 0: Listar pedidos reprogramables
      */
     0: async (userMessage, sessionContext) => {
-      const userId = sessionContext.userId;
+      const { userId } = sessionContext;
 
       const orders = await Order.findAll({
         where: {
@@ -38,8 +38,8 @@ const reprogramarFlow = {
       if (!orders.length) {
         return {
           response:
-            '📋 No tenés pedidos que puedan reprogramarse en este momento.\n\n' +
-            'Solo se pueden reprogramar pedidos que estén pagados, en preparación o listos para envío.',
+            '📋 No tenés pedidos que puedan reprogramarse en este momento.\n\n'
+            + 'Solo se pueden reprogramar pedidos que estén pagados, en preparación o listos para envío.',
           nextStep: null,
           context: {},
           shouldResetFlow: true,
@@ -66,9 +66,9 @@ const reprogramarFlow = {
 
       return {
         response:
-          `📋 *Pedidos que podés reprogramar:*\n\n${orderList}\n\n` +
-          `Respondé con el *número* del pedido que querés reprogramar.\n\n` +
-          `_Escribí *CANCELAR* para volver al menú._`,
+          `📋 *Pedidos que podés reprogramar:*\n\n${orderList}\n\n`
+          + 'Respondé con el *número* del pedido que querés reprogramar.\n\n'
+          + '_Escribí *CANCELAR* para volver al menú._',
         nextStep: 1,
         context: { orderIds: orders.map((o) => o.id) },
       };
@@ -134,11 +134,11 @@ const reprogramarFlow = {
 
       const currentDelivery = order.estimatedDelivery
         ? new Date(order.estimatedDelivery).toLocaleDateString('es-AR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
         : 'Sin fecha asignada';
 
       const productName = order.product?.name || order.subscription?.name || 'Pedido';
@@ -156,11 +156,11 @@ const reprogramarFlow = {
 
       return {
         response:
-          `📦 *${productName}* (x${order.quantity})\n` +
-          `🕐 Entrega actual: ${currentDelivery}\n\n` +
-          `Seleccioná la nueva fecha de entrega:\n\n${dateOptions}\n\n` +
-          `Respondé con el *número* de la opción.\n\n` +
-          `_Escribí *CANCELAR* para volver al menú._`,
+          `📦 *${productName}* (x${order.quantity})\n`
+          + `🕐 Entrega actual: ${currentDelivery}\n\n`
+          + `Seleccioná la nueva fecha de entrega:\n\n${dateOptions}\n\n`
+          + 'Respondé con el *número* de la opción.\n\n'
+          + '_Escribí *CANCELAR* para volver al menú._',
         nextStep: 2,
         context: {
           ...sessionContext.context,
@@ -214,11 +214,11 @@ const reprogramarFlow = {
 
       return {
         response:
-          `📋 *Confirmá la reprogramación:*\n\n` +
-          `📦 Pedido: *${sessionContext.context.selectedOrderName}*\n` +
-          `🕐 Fecha anterior: ${sessionContext.context.currentDelivery}\n` +
-          `🕐 Nueva fecha: ${newDateStr} (${selectedOption.startTime} – ${selectedOption.endTime} hs)\n\n` +
-          `¿Confirmás la reprogramación? Respondé *SÍ* o *NO*.`,
+          '📋 *Confirmá la reprogramación:*\n\n'
+          + `📦 Pedido: *${sessionContext.context.selectedOrderName}*\n`
+          + `🕐 Fecha anterior: ${sessionContext.context.currentDelivery}\n`
+          + `🕐 Nueva fecha: ${newDateStr} (${selectedOption.startTime} – ${selectedOption.endTime} hs)\n\n`
+          + '¿Confirmás la reprogramación? Respondé *SÍ* o *NO*.',
         nextStep: 3,
         context: {
           ...sessionContext.context,
@@ -256,7 +256,9 @@ const reprogramarFlow = {
       }
 
       try {
-        const { selectedOrderId, selectedDate, selectedDateDisplay, selectedTimeWindow, selectedOrderName } = sessionContext.context;
+        const {
+          selectedOrderId, selectedDate, selectedDateDisplay, selectedTimeWindow, selectedOrderName,
+        } = sessionContext.context;
 
         const order = await Order.findByPk(selectedOrderId);
 
@@ -290,11 +292,11 @@ const reprogramarFlow = {
 
         return {
           response:
-            `✅ *¡Entrega reprogramada con éxito!*\n\n` +
-            `📦 Pedido: *${selectedOrderName}*\n` +
-            `📅 Nueva fecha: ${selectedDateDisplay}\n` +
-            `🕐 Horario: ${selectedTimeWindow} hs\n\n` +
-            `Te avisaremos cuando el pedido esté en camino. 🚗`,
+            '✅ *¡Entrega reprogramada con éxito!*\n\n'
+            + `📦 Pedido: *${selectedOrderName}*\n`
+            + `📅 Nueva fecha: ${selectedDateDisplay}\n`
+            + `🕐 Horario: ${selectedTimeWindow} hs\n\n`
+            + 'Te avisaremos cuando el pedido esté en camino. 🚗',
           nextStep: null,
           context: {},
           shouldResetFlow: true,

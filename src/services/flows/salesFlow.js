@@ -21,18 +21,16 @@ const salesFlow = {
     /**
      * Step 0: Redirigir al usuario hacia planes de suscripción
      */
-    0: async (userMessage, sessionContext) => {
-      return {
-        response:
-          '🛒 Las compras individuales no están disponibles en este momento.\n\n' +
-          'Actualmente trabajamos con *planes de suscripción mensual* 📦\n\n' +
-          'Podés ver nuestros planes respondiendo *SUSCRIPCION* o eligiendo la opción del menú. ¿Querés verlos?',
-        nextStep: null,
-        context: {},
-        shouldResetFlow: true,
-        redirectFlow: 'suscripcion',
-      };
-    },
+    0: async (userMessage, sessionContext) => ({
+      response:
+          '🛒 Las compras individuales no están disponibles en este momento.\n\n'
+          + 'Actualmente trabajamos con *planes de suscripción mensual* 📦\n\n'
+          + 'Podés ver nuestros planes respondiendo *SUSCRIPCION* o eligiendo la opción del menú. ¿Querés verlos?',
+      nextStep: null,
+      context: {},
+      shouldResetFlow: true,
+      redirectFlow: 'suscripcion',
+    }),
   },
 };
 

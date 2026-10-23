@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
 const crm = require('../controllers/crmController');
@@ -472,4 +473,3 @@ router.get('/user-subscriptions', subscriptionCtrl.listUserSubscriptions);
 router.get('/clients/:id/subscriptions', subscriptionCtrl.getSubscriptionsByClient);
 
 module.exports = router;
-

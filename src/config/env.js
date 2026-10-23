@@ -44,10 +44,10 @@ module.exports = {
   AI_API_KEY: process.env.AI_API_KEY || '',
   AI_MODEL: process.env.AI_MODEL || 'gemini-2.0-flash',
   AI_SYSTEM_PROMPT:
-    process.env.AI_SYSTEM_PROMPT ||
-    'Sos un asistente de Yemas del Sol, empresa argentina de venta de maples de huevos frescos. ' +
-    'Respondé siempre en español, de forma amable y concisa. ' +
-    'Si no podés resolver la consulta, derivá al cliente a un operador.',
+    process.env.AI_SYSTEM_PROMPT
+    || 'Sos un asistente de Yemas del Sol, empresa argentina de venta de maples de huevos frescos. '
+    + 'Respondé siempre en español, de forma amable y concisa. '
+    + 'Si no podés resolver la consulta, derivá al cliente a un operador.',
 
   // ── Validation helpers ────────────────────────────────────────
   isDevelopment: process.env.NODE_ENV === 'development',

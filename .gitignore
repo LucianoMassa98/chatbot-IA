@@ -7,6 +7,10 @@ yarn.lock
 .env.local
 .env.*.local
 
+# Sessions / WhatsApp Web Auth
+sessions/
+auth_info_baileys/
+
 # Logs
 logs/
 *.log

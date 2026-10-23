@@ -33,13 +33,12 @@ const menuFlow = {
             nextStep: 2,
             context: {},
           };
-        } else {
-          return {
-            response: `¡Hola, ${user.firstName}! 👋\n\nPara poder enviarte nuestros productos, necesitamos tu dirección de entrega.\n\nPor favor, escribí tu *dirección completa* o compartinos tu *ubicación* (puedes enviar tu ubicación actual de WhatsApp o un enlace de Google Maps) 📍:`,
-            nextStep: 3,
-            context: {},
-          };
         }
+        return {
+          response: `¡Hola, ${user.firstName}! 👋\n\nPara poder enviarte nuestros productos, necesitamos tu dirección de entrega.\n\nPor favor, escribí tu *dirección completa* o compartinos tu *ubicación* (puedes enviar tu ubicación actual de WhatsApp o un enlace de Google Maps) 📍:`,
+          nextStep: 3,
+          context: {},
+        };
       }
 
       return {
@@ -58,8 +57,8 @@ const menuFlow = {
       const msg = userMessage.toLowerCase().trim();
 
       // Opción 1 o 2 → suscripciones (compra individual deshabilitada)
-      if (msg.includes('1') || msg.includes('comprar') || msg.includes('producto') || msg.includes('compra') ||
-          msg.includes('2') || msg.includes('suscripci')) {
+      if (msg.includes('1') || msg.includes('comprar') || msg.includes('producto') || msg.includes('compra')
+          || msg.includes('2') || msg.includes('suscripci')) {
         return {
           response: null,
           nextStep: null,
@@ -112,8 +111,8 @@ const menuFlow = {
       // Opción no reconocida
       return {
         response:
-          'No entendí tu selección. Por favor elegí una opción:\n\n' +
-          buildMainMenuText(),
+          `No entendí tu selección. Por favor elegí una opción:\n\n${
+            buildMainMenuText()}`,
         nextStep: 1,
         context: {},
         interactive: buildMainMenuInteractive(),
@@ -161,24 +160,24 @@ const menuFlow = {
 
       const user = await User.findByPk(sessionContext.userId);
       if (user) {
-        const isMapUrl = addressOrLocation.includes('maps.google.com') ||
-          addressOrLocation.includes('maps.app.goo.gl') ||
-          addressOrLocation.includes('goo.gl/maps');
+        const isMapUrl = addressOrLocation.includes('maps.google.com')
+          || addressOrLocation.includes('maps.app.goo.gl')
+          || addressOrLocation.includes('goo.gl/maps');
 
         if (isMapUrl) {
           await user.update({
             location: { googleMapsUrl: addressOrLocation },
-            address: 'Ubicación de Google Maps'
+            address: 'Ubicación de Google Maps',
           });
         } else {
           await user.update({
-            address: addressOrLocation
+            address: addressOrLocation,
           });
         }
       }
 
       return {
-        response: `¡Registro completado con éxito! 🎉\n\n` + buildMainMenuText(),
+        response: `¡Registro completado con éxito! 🎉\n\n${buildMainMenuText()}`,
         nextStep: 1,
         context: {},
         interactive: buildMainMenuInteractive(),
@@ -189,13 +188,13 @@ const menuFlow = {
 
 function buildMainMenuText() {
   return (
-    'Seleccioná una opción:\n\n' +
-    '1️⃣ Ver planes de suscripción\n' +
-    '2️⃣ Consultar mis pedidos\n' +
-    '3️⃣ Cambiar dirección de entrega\n' +
-    '4️⃣ Reprogramar una entrega\n' +
-    '5️⃣ Hablar con un operador\n\n' +
-    '_Respondé con el número o el nombre de la opción._'
+    'Seleccioná una opción:\n\n'
+    + '1️⃣ Ver planes de suscripción\n'
+    + '2️⃣ Consultar mis pedidos\n'
+    + '3️⃣ Cambiar dirección de entrega\n'
+    + '4️⃣ Reprogramar una entrega\n'
+    + '5️⃣ Hablar con un operador\n\n'
+    + '_Respondé con el número o el nombre de la opción._'
   );
 }
 
@@ -204,13 +203,13 @@ function buildMainMenuInteractive() {
     type: 'list',
     header: {
       type: 'text',
-      text: '🐔 Yemas del Sol'
+      text: '🐔 Yemas del Sol',
     },
     body: {
-      text: '¿En qué puedo ayudarte hoy? Seleccioná una opción del menú:'
+      text: '¿En qué puedo ayudarte hoy? Seleccioná una opción del menú:',
     },
     footer: {
-      text: 'Yemas del Sol AI'
+      text: 'Yemas del Sol AI',
     },
     action: {
       button: 'Ver Opciones',
@@ -222,11 +221,11 @@ function buildMainMenuInteractive() {
             { id: 'pedidos', title: '📋 Mis pedidos', description: 'Consultar el estado de tus pedidos' },
             { id: 'cambiar_direccion', title: '📍 Cambiar dirección', description: 'Modificar tu dirección de entrega' },
             { id: 'reprogramar', title: '⏰ Reprogramar entrega', description: 'Cambiar fecha u hora de entrega' },
-            { id: 'support', title: '💬 Hablar con operador', description: 'Contactar con atención al cliente' }
-          ]
-        }
-      ]
-    }
+            { id: 'support', title: '💬 Hablar con operador', description: 'Contactar con atención al cliente' },
+          ],
+        },
+      ],
+    },
   };
 }
 

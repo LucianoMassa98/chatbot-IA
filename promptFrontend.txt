@@ -1,13 +1,13 @@
 ================================================================================
   PROMPT PARA FRONTEND — YEMAS DEL SOL CRM
   Stack: Vite + React.js + Tailwind CSS
-  Fecha: Julio 2026
+  Fecha: Julio 2026 — v2.0 (Gestión de Suscripciones)
 ================================================================================
 
-Necesito que crees una aplicación frontend CRM/Admin para "Yemas del Sol", una 
-empresa argentina de venta de maples de huevos frescos con delivery. 
+Necesito que crees una aplicación frontend CRM/Admin para "Yemas del Sol", una
+empresa argentina de venta de maples de huevos frescos con delivery.
 
-La app se conecta a un backend Node.js/Express existente. Todos los endpoints 
+La app se conecta a un backend Node.js/Express existente. Todos los endpoints
 están protegidos con Google OAuth (Bearer token) excepto el login.
 
 STACK OBLIGATORIO:
@@ -35,7 +35,7 @@ FLUJO:
 3. Se envía el token al backend POST /api/auth/google
 4. Si es exitoso, se guarda el token y los datos del usuario en Context/localStorage
 5. Todas las requests posteriores van con header: Authorization: Bearer <idToken>
-6. IMPORTANTE: el backend acepta roles "operador" y "administrador"
+6. IMPORTANTE: el backend acepta roles "armador", "repartidor" y "administrador"
 7. CRM_FRONTEND_URL en el backend está en http://localhost:5173
 
 VARIABLE DE ENTORNO (poner en .env del frontend):
@@ -76,6 +76,23 @@ SUBSCRIPTION (plan de suscripción):
   - price: decimal
   - isActive: boolean
 
+USER_SUBSCRIPTION (instancia activa de suscripción de un cliente):
+  - id: UUID
+  - userId: UUID → User (el cliente)
+  - subscriptionId: UUID → Subscription (el plan)
+  - status: "pending_payment" | "active" | "paused" | "expired" | "cancelled"
+  - currentPeriodStart: datetime (inicio del mes en curso)
+  - currentPeriodEnd: datetime (fecha de renovación)
+  - nextDeliveryDate: datetime (próxima entrega semanal/quincenal)
+  - deliveryCount: integer (entregas realizadas en el período)
+  - renewalOrderId: UUID (orden de pago de renovación pendiente, si existe)
+  - reminderSentAt: datetime
+  - cancelledAt: datetime
+  - metadata: JSON (deliveryOrderIds: lista de IDs de órdenes de entrega)
+  - user: { firstName, lastName, contact, address }
+  - plan: { name, price, frequency, maplesQuantity }
+  - deliveryOrders: [ { id, status, quantity, estimatedDelivery, deliveredAt } ]
+
 ORDER:
   - id: UUID
   - userId: UUID (→ User)
@@ -84,11 +101,12 @@ ORDER:
   - type: "single" | "subscription"
   - status: "pending_payment" | "paid" | "preparing" | "ready" | "delivering" | "delivered" | "rescheduled" | "cancelled"
   - quantity: integer
-  - total: decimal (en ARS)
+  - total: decimal (en ARS, puede ser 0 para entregas de suscripción)
   - deliveryAddress: string
   - estimatedDelivery: datetime
   - deliveredAt: datetime
   - notes: text
+  - metadata: { isRenewal, userSubscriptionId, isWeeklyDelivery, deliveryNumber }
 
 PAYMENT:
   - id: UUID
@@ -162,6 +180,25 @@ GET    /api/my-assignments/history         ?limit=50 → historial completo
 ─── CLIENTES (operador + admin) ─────────────────────────────
 GET    /api/clients                        → lista de clientes (role=cliente)
 GET    /api/clients/:id                    → perfil + historial de pedidos
+GET    /api/clients/:id/subscriptions      → suscripciones de un cliente (activas e históricas)
+
+─── SUSCRIPCIONES ACTIVAS DE CLIENTES — USER SUBSCRIPTIONS ──
+    Consulta (operador + admin):
+GET    /api/user-subscriptions             ?status=active|paused|expired|cancelled|pending_payment
+                                           → lista todas las suscripciones activas de clientes
+
+    Administración (solo admin):
+GET    /api/user-subscriptions/:id         → detalle de suscripción + historial de entregas
+PUT    /api/user-subscriptions/:id/cancel  { notes? } → cancelar suscripción + notifica al cliente
+PUT    /api/user-subscriptions/:id/pause   → pausar (detiene entregas semanales)
+PUT    /api/user-subscriptions/:id/resume  → reactivar suscripción pausada
+POST   /api/user-subscriptions/:id/force-renew → generar orden de renovación manual
+POST   /api/user-subscriptions/trigger-weekly-deliveries → ejecutar job semanal manualmente
+
+─── PLANES DE SUSCRIPCIÓN (solo admin) ──────────────────────
+GET    /api/subscriptions                  → lista planes
+POST   /api/subscriptions                  { name, price, frequencyWeeks, description? }
+PUT    /api/subscriptions/:id              { name?, description?, price?, frequencyWeeks?, isActive? }
 
 ─── PRODUCTOS (solo admin) ──────────────────────────────────
 GET    /api/products                       → lista todos (activos e inactivos)
@@ -169,14 +206,9 @@ POST   /api/products                       { name, price, description?, stock?, 
 PUT    /api/products/:id                   { name?, description?, price?, stock?, imageUrl?, isActive? }
 DELETE /api/products/:id                   → desactiva (isActive=false)
 
-─── SUSCRIPCIONES (solo admin) ──────────────────────────────
-GET    /api/subscriptions                  → lista planes
-POST   /api/subscriptions                  { name, price, frequencyWeeks, description? }
-PUT    /api/subscriptions/:id              { name?, description?, price?, frequencyWeeks?, isActive? }
-
 ─── OPERADORES (solo admin) ─────────────────────────────────
-GET    /api/operators                      → lista usuarios con role=operador
-POST   /api/operators                      { contact, firstName, password, lastName? }
+GET    /api/operators                      → lista usuarios staff
+POST   /api/operators                      { contact, firstName, password, lastName?, role? }
 
 ─── CONFIGURACIÓN (solo admin) ──────────────────────────────
 GET    /api/config/operating-hours         → horarios por día
@@ -192,27 +224,31 @@ PUT    /api/config/delivery-zones/:id      { name?, price?, isActive? }
 LAYOUT: Sidebar + Top bar con perfil Google y notificaciones
 
 RUTAS DE LA APP:
-/login                  → Login con Google (página pública)
-/                       → Dashboard (redirect si no está logueado)
-/orders                 → Lista de pedidos con filtros por estado
-/orders/:id             → Detalle de pedido (timeline de estados, asignaciones)
-/conversations          → CRM Chat (lista de conversaciones + chat abierto)
-/clients                → Lista de clientes
-/clients/:id            → Perfil del cliente + historial de pedidos
-/products               → ABM de productos (solo admin)
-/subscriptions          → ABM de suscripciones (solo admin)
-/operators              → Gestión de operadores (solo admin)
-/settings               → Configuración: horarios + zonas de entrega (solo admin)
+/login                        → Login con Google (página pública)
+/                             → Dashboard (redirect si no está logueado)
+/orders                       → Lista de pedidos con filtros por estado
+/orders/:id                   → Detalle de pedido (timeline de estados, asignaciones)
+/conversations                → CRM Chat (lista de conversaciones + chat abierto)
+/clients                      → Lista de clientes
+/clients/:id                  → Perfil del cliente + historial de pedidos + suscripciones
+/user-subscriptions           → Gestión de suscripciones activas de clientes (NUEVA)
+/user-subscriptions/:id       → Detalle de suscripción de cliente (NUEVA)
+/subscriptions                → ABM de planes de suscripción (solo admin)
+/operators                    → Gestión de operadores (solo admin)
+/settings                     → Configuración: horarios + zonas de entrega (solo admin)
+
+NOTA: La sección de Productos (/products) se puede mantener en el sidebar pero
+con un badge "Inactivo" ya que las compras individuales están deshabilitadas.
 
 ================================================================================
   5. DISEÑO DE CADA PÁGINA
 ================================================================================
 
 ─── LOGIN ───────────────────────────────────────────────────
-- Fondo con gradiente
+- Fondo con gradiente amarillo/ámbar
 - Logo "Yemas del Sol" centrado
-- Botón "Iniciar sesión con Google" 
-- Si el usuario no tiene acceso, mostrar error
+- Botón "Iniciar sesión con Google"
+- Si el usuario no tiene acceso, mostrar error claro
 
 ─── DASHBOARD (/) ───────────────────────────────────────────
 - Cards de resumen con GET /api/reports/summary:
@@ -221,14 +257,17 @@ RUTAS DE LA APP:
   • Pagos pendientes
   • En reparto
   • Entregados hoy
+- NUEVO: Card de "Suscripciones Activas" con count de GET /api/user-subscriptions?status=active
+- NUEVO: Card de "Próximas Renovaciones" (suscripciones expirando en 7 días)
 - Tabla de despachos del día con GET /api/reports/deliveries
 - Gráfico de pedidos por estado (usar Recharts)
 
 ─── PEDIDOS (/orders) ──────────────────────────────────────
 - Tabs o filtros por estado: Todos | Pago Pendiente | Pagado | Preparando | Listo | En Reparto | Entregado | Cancelado
-- Tabla con columnas: ID corto, Cliente, Producto, Cantidad, Total, Estado (badge de color), Fecha
+- NUEVO: indicador visual en filas cuando la orden es de tipo "subscription" (ícono 🔄 o badge "Suscripción")
+- Tabla con columnas: ID corto, Cliente, Tipo (🛒 Single / 🔄 Suscripción), Cantidad, Total, Estado (badge), Fecha estimada
 - Acciones: Ver detalle, Cambiar estado
-- Cada estado tiene un color/badge diferente:
+- Colores de badge por estado:
   • pending_payment → gris
   • paid → azul
   • preparing → amarillo
@@ -239,7 +278,8 @@ RUTAS DE LA APP:
   • rescheduled → celeste
 
 ─── DETALLE DE PEDIDO (/orders/:id) ────────────────────────
-- Info del pedido: producto, cantidad, total, dirección, fecha
+- Info del pedido: tipo, producto/plan, cantidad, total, dirección, fecha estimada
+- NUEVO: si es de tipo "subscription", mostrar link al perfil de la UserSubscription
 - Info del cliente: nombre, teléfono, dirección
 - Info del pago: monto, estado MP, ID MP
 - Timeline vertical de estados (visual)
@@ -263,35 +303,94 @@ RUTAS DE LA APP:
 
 ─── CLIENTES (/clients) ────────────────────────────────────
 - Tabla: Nombre, Teléfono, Dirección, Fecha registro, Nro pedidos
+- NUEVO: columna "Suscripción activa" (badge verde/gris según tenga UserSubscription activa)
 - Buscador por nombre o teléfono
 - Clic en fila → ver perfil
 
 ─── PERFIL CLIENTE (/clients/:id) ──────────────────────────
 - Datos del cliente: nombre, teléfono, dirección, ubicación (link a Google Maps)
 - Horario preferido de entrega
+- NUEVA SECCIÓN: "Suscripciones" — cargada desde GET /api/clients/:id/subscriptions
+  • Lista de todas sus suscripciones (activas e históricas)
+  • Cada fila: plan, estado (badge), período, próxima entrega, acciones rápidas
+  • Si tiene suscripción activa: botón "Ver detalle completo" → /user-subscriptions/:id
 - Historial de pedidos (tabla con estado y fecha)
 
-─── PRODUCTOS (/products) — Solo Admin ─────────────────────
-- Tabla CRUD: Nombre, Precio, Unidad, Estado (activo/inactivo)
-- Modal para crear/editar producto
-- Botón para desactivar producto
+─── SUSCRIPCIONES ACTIVAS (/user-subscriptions) — NUEVA PÁGINA ─
+Esta es la sección más importante nueva. Disponible para operadores (lectura)
+y administradores (lectura + acciones).
 
-─── SUSCRIPCIONES (/subscriptions) — Solo Admin ────────────
-- Tabla CRUD: Nombre, Precio, Frecuencia, Maples por entrega, Estado
+LAYOUT:
+- Título: "Suscripciones de Clientes"
+- Filtros superiores: tabs por estado — Todas | Activas | Pausadas | Por Vencer | Expiradas | Canceladas
+  • "Por Vencer" = activas con currentPeriodEnd en los próximos 7 días (filtrar en frontend)
+- Tabla con columnas:
+  • Cliente (nombre + teléfono)
+  • Plan (nombre + frecuencia)
+  • Maples/entrega
+  • Estado (badge con colores)
+  • Período actual (desde → hasta) — mostrar barra de progreso del mes
+  • Próxima entrega (fecha + días restantes)
+  • Entregas realizadas (deliveryCount)
+  • Acciones (ver detalle, y para admin: cancelar / pausar / reactivar)
+
+BADGES DE ESTADO:
+  • pending_payment → gris ("Pago pendiente")
+  • active → verde ("Activa")
+  • paused → amarillo ("Pausada")
+  • expired → rojo ("Vencida")
+  • cancelled → rojo oscuro ("Cancelada")
+
+ACCIONES EN TABLA (solo admin):
+  • Botón "Pausar" → PUT /api/user-subscriptions/:id/pause (con confirm dialog)
+  • Botón "Cancelar" → PUT /api/user-subscriptions/:id/cancel con campo de notas (con confirm dialog)
+  • Botón "Renovar" → POST /api/user-subscriptions/:id/force-renew (para vencidas/expiradas)
+
+BOTÓN ESPECIAL (solo admin, barra superior):
+  • "⚡ Generar Entregas Semanales" → POST /api/user-subscriptions/trigger-weekly-deliveries
+    Mostrar el resultado: "Se generaron X pedidos de entrega."
+
+─── DETALLE DE SUSCRIPCIÓN (/user-subscriptions/:id) — NUEVA PÁGINA ─
+Disponible para admin. Operadores pueden acceder en modo lectura.
+
+SECCIONES:
+1. CABECERA: Nombre del cliente + plan contratado + badge de estado
+   - Acciones (solo admin): Pausar | Reactivar | Cancelar | Forzar Renovación
+
+2. INFO DEL PERÍODO ACTUAL:
+   - Desde: currentPeriodStart
+   - Hasta: currentPeriodEnd
+   - Barra de progreso visual del mes (% del período transcurrido)
+   - Días para vencimiento (con alerta si < 7 días)
+   - Entregas realizadas en el período (deliveryCount)
+
+3. PRÓXIMA ENTREGA:
+   - nextDeliveryDate (formato dd/mm/yyyy)
+   - Días restantes (ej: "en 3 días")
+
+4. INFO DEL PLAN:
+   - Nombre, frecuencia, maples por entrega, precio mensual
+
+5. HISTORIAL DE ENTREGAS (deliveryOrders del endpoint GET /api/user-subscriptions/:id):
+   - Tabla: Nro entrega, Fecha estimada, Estado, Entregado el
+   - Badge de estado de la orden
+
+6. DATOS DEL CLIENTE:
+   - Nombre, teléfono (con link a WhatsApp), dirección
+
+─── PLANES DE SUSCRIPCIÓN (/subscriptions) — Solo Admin ────
+- Tabla CRUD: Nombre, Precio/mes, Frecuencia de entrega, Maples, Estado
 - Modal para crear/editar plan
+- NUEVO: columna "Suscriptores activos" (count de UserSubscriptions activas por plan)
 
 ─── OPERADORES (/operators) — Solo Admin ───────────────────
-- Lista de operadores del sistema
+- Lista de operadores del sistema con su rol (armador / repartidor / administrador)
 - Formulario para crear nuevo operador
-- Datos: nombre, contacto (email Google), contraseña
+- Datos: nombre, contacto (email Google / teléfono), rol, contraseña
 
 ─── CONFIGURACIÓN (/settings) — Solo Admin ─────────────────
-- Sección 1: Horarios de atención
-  • Tabla con los 7 días de la semana
-  • Campos editables: hora apertura, cierre, inicio delivery, fin delivery, activo/inactivo
-- Sección 2: Zonas de entrega
-  • Tabla CRUD: Nombre de zona, Precio de envío, Estado
-  • Modal para crear/editar zona
+- Sección 1: Horarios de atención (tabla 7 días, editable)
+- Sección 2: Zonas de entrega (tabla CRUD)
 
 ================================================================================
   6. FLUJO DE ESTADOS DE PEDIDO (para el timeline visual)
@@ -301,35 +400,56 @@ pending_payment → paid → preparing → ready → delivering → delivered
                                                           ↘ rescheduled
                           (cualquier estado) → cancelled
 
-El flujo normal es:
-1. Cliente paga → "paid"
-2. Armador se asigna → "preparing" 
-3. Armador confirma consolidado → "ready" (todos los pedidos paid → ready)
+El flujo normal para pedidos de suscripción semanal:
+1. Se genera automáticamente con status "paid" (ya está pago mensualmente)
+2. Armador se asigna → "preparing"
+3. Armador confirma armado → "ready"
 4. Repartidor se asigna → "delivering" (se notifica al cliente)
 5. Repartidor confirma entrega → "delivered"
 
-================================================================================
-  7. COMPONENTES REUTILIZABLES A CREAR
-================================================================================
-
-- <AuthProvider>         → Context de autenticación Google
-- <ProtectedRoute>       → HOC para rutas protegidas
-- <AdminRoute>           → HOC para rutas solo admin
-- <Sidebar>              → Navegación lateral
-- <TopBar>               → Barra superior con avatar, nombre y logout
-- <StatusBadge>          → Badge con color según estado del pedido
-- <DataTable>            → Tabla genérica con paginación y búsqueda
-- <Modal>                → Modal reutilizable para formularios
-- <StatCard>             → Card de estadística del dashboard
-- <OrderTimeline>        → Timeline visual de estados del pedido
-- <ChatBubble>           → Burbuja de mensaje (in/out)
-- <ConversationList>     → Lista de conversaciones del CRM
-- <LoadingSpinner>       → Spinner de carga
-- <EmptyState>           → Componente para cuando no hay datos
-- <ConfirmDialog>        → Diálogo de confirmación para acciones destructivas
+IMPORTANTE: en pedidos type="subscription" el total puede ser $0 (entregas
+semanales cubiertas por el pago mensual). Mostrar el monto del plan mensual
+en la sección de suscripción, no en la orden de entrega.
 
 ================================================================================
-  8. ESTÉTICA Y DISEÑO
+  7. FLUJO DE SUSCRIPCIÓN MENSUAL (para contexto del CRM)
+================================================================================
+
+1. Cliente contrata plan → se crea UserSubscription status="pending_payment"
+2. Cliente paga → status="active", se programa primera entrega
+3. Cada semana (automático) → se generan órdenes de entrega status="paid"
+   → armadores y repartidores son notificados por WhatsApp
+4. 3 días antes del vencimiento del mes → recordatorio por WhatsApp al cliente
+5. Al vencer el período → se genera orden de renovación y se envía link de pago
+6. Cliente paga renovación → nuevo período activo
+7. Si no paga en 3 días de gracia → status="expired"
+8. Admin puede pausar/cancelar/forzar renovación desde el CRM
+
+================================================================================
+  8. COMPONENTES REUTILIZABLES A CREAR
+================================================================================
+
+- <AuthProvider>                → Context de autenticación Google
+- <ProtectedRoute>              → HOC para rutas protegidas
+- <AdminRoute>                  → HOC para rutas solo admin
+- <Sidebar>                     → Navegación lateral (con nueva sección Suscripciones)
+- <TopBar>                      → Barra superior con avatar, nombre y logout
+- <StatusBadge>                 → Badge con color según estado del pedido o suscripción
+- <SubscriptionStatusBadge>     → Badge específico para estados de UserSubscription
+- <DataTable>                   → Tabla genérica con paginación y búsqueda
+- <Modal>                       → Modal reutilizable para formularios
+- <StatCard>                    → Card de estadística del dashboard
+- <OrderTimeline>               → Timeline visual de estados del pedido
+- <PeriodProgressBar>           → Barra de progreso del mes de suscripción (NUEVO)
+- <SubscriptionCard>            → Card resumen de una UserSubscription (NUEVO)
+- <ChatBubble>                  → Burbuja de mensaje (in/out)
+- <ConversationList>            → Lista de conversaciones del CRM
+- <LoadingSpinner>              → Spinner de carga
+- <EmptyState>                  → Componente para cuando no hay datos
+- <ConfirmDialog>               → Diálogo de confirmación para acciones destructivas
+
+================================================================================
+  9. ESTÉTICA Y DISEÑO
 ================================================================================
 
 PALETA DE COLORES (tema "Yemas del Sol"):
@@ -344,6 +464,13 @@ PALETA DE COLORES (tema "Yemas del Sol"):
 - Warning: Amarillo (#F59E0B)
 - Info: Azul (#3B82F6)
 
+BADGES DE SUSCRIPCIÓN:
+- active → bg-green-100 text-green-700
+- paused → bg-yellow-100 text-yellow-700
+- pending_payment → bg-gray-100 text-gray-600
+- expired → bg-red-100 text-red-700
+- cancelled → bg-red-200 text-red-800
+
 TIPOGRAFÍA: Inter (Google Fonts)
 
 PRINCIPIOS:
@@ -354,9 +481,11 @@ PRINCIPIOS:
 - Loading skeletons mientras cargan datos
 - Responsive (funcionar en tablets y desktop)
 - Toast notifications para acciones exitosas/errores
+- Barra de progreso del período de suscripción (verde si > 50%, amarillo si < 30%)
+- Alertas visuales para suscripciones por vencer (< 7 días → banner naranja)
 
 ================================================================================
-  9. ESTRUCTURA DE CARPETAS SUGERIDA
+  10. ESTRUCTURA DE CARPETAS SUGERIDA
 ================================================================================
 
 frontend/
@@ -364,7 +493,7 @@ frontend/
 │   └── favicon.ico
 ├── src/
 │   ├── api/
-│   │   └── axiosClient.js         (instancia Axios con interceptors)
+│   │   └── axiosClient.js             (instancia Axios con interceptors)
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── Sidebar.jsx
@@ -372,14 +501,20 @@ frontend/
 │   │   │   └── MainLayout.jsx
 │   │   ├── ui/
 │   │   │   ├── StatusBadge.jsx
+│   │   │   ├── SubscriptionStatusBadge.jsx  ← NUEVO
 │   │   │   ├── DataTable.jsx
 │   │   │   ├── Modal.jsx
 │   │   │   ├── StatCard.jsx
+│   │   │   ├── PeriodProgressBar.jsx        ← NUEVO
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── EmptyState.jsx
 │   │   │   └── ConfirmDialog.jsx
 │   │   ├── orders/
 │   │   │   └── OrderTimeline.jsx
+│   │   ├── subscriptions/               ← NUEVA CARPETA
+│   │   │   ├── SubscriptionCard.jsx
+│   │   │   ├── SubscriptionActions.jsx
+│   │   │   └── DeliveryHistoryTable.jsx
 │   │   └── chat/
 │   │       ├── ChatBubble.jsx
 │   │       └── ConversationList.jsx
@@ -395,8 +530,9 @@ frontend/
 │   │   ├── OrderDetail.jsx
 │   │   ├── Conversations.jsx
 │   │   ├── Clients.jsx
-│   │   ├── ClientDetail.jsx
-│   │   ├── Products.jsx
+│   │   ├── ClientDetail.jsx            (incluye sección de suscripciones)
+│   │   ├── UserSubscriptions.jsx       ← NUEVA
+│   │   ├── UserSubscriptionDetail.jsx  ← NUEVA
 │   │   ├── Subscriptions.jsx
 │   │   ├── Operators.jsx
 │   │   └── Settings.jsx
@@ -418,7 +554,7 @@ frontend/
 └── package.json
 
 ================================================================================
-  10. CONFIGURACIÓN INICIAL
+  11. CONFIGURACIÓN INICIAL
 ================================================================================
 
 1. Crear proyecto Vite:
@@ -450,15 +586,24 @@ frontend/
    }
 
 ================================================================================
-  11. NOTAS IMPORTANTES
+  12. NOTAS IMPORTANTES
 ================================================================================
 
 - El backend ya tiene CORS configurado para CRM_FRONTEND_URL (http://localhost:5173)
 - La autenticación usa Google ID Tokens directamente (no JWT propio)
 - El token de Google expira cada ~1 hora. Manejar el refresh silencioso
 - Los IDs son UUID. Mostrar solo los primeros 8 caracteres en la UI
-- Montos en pesos argentinos (ARS). Formatear con separador de miles punto y coma para decimales
+- Montos en pesos argentinos (ARS). Formatear con separador de miles
 - Fechas en timezone America/Argentina/Buenos_Aires, formato dd/mm/yyyy
 - El backend corre en puerto 3000, el frontend en 5173
+- Las compras individuales de productos están DESHABILITADAS en el bot.
+  No construir flujo de compra en el frontend; sí mantener la gestión de
+  Productos en admin para tener los datos actualizados.
+- Los pedidos de tipo "subscription" con total=0 son entregas semanales
+  cubiertas por el pago mensual. Mostrarlo claramente en la UI.
+- El scheduler del backend corre automáticamente:
+  • 09:00 diario → recordatorio de renovación
+  • 09:05 diario → expiración de suscripciones sin pago
+  • Lunes 08:00 → generación de pedidos semanales + notificación a operadores
 
 ================================================================================

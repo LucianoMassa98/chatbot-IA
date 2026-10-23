@@ -10,7 +10,7 @@ const errorHandler = (err, req, res, next) => {
 
   // Wrong MongoDB/Sequelize ID error
   if (err.name === 'SequelizeUniqueConstraintError') {
-    const message = `Duplicate field value entered`;
+    const message = 'Duplicate field value entered';
     err = new AppError(message, 400);
   }
 

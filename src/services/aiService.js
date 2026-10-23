@@ -15,10 +15,10 @@ class AIService {
         this.client = new GoogleGenerativeAI(env.AI_API_KEY);
         this.model = this.client.getGenerativeModel({
           model: env.AI_MODEL || 'gemini-2.0-flash',
-          systemInstruction: env.AI_SYSTEM_PROMPT ||
-            'You are a helpful and friendly customer support assistant. ' +
-            'Answer questions clearly and concisely. ' +
-            'If you cannot help with something, politely redirect the user to a human agent.',
+          systemInstruction: env.AI_SYSTEM_PROMPT
+            || 'You are a helpful and friendly customer support assistant. '
+            + 'Answer questions clearly and concisely. '
+            + 'If you cannot help with something, politely redirect the user to a human agent.',
         });
         logger.info('Gemini AI service initialized successfully');
       } catch (error) {
@@ -57,7 +57,6 @@ class AIService {
       logger.info('Gemini response received', { responseLength: responseText.length });
 
       return responseText;
-
     } catch (error) {
       logger.error(`Gemini API error: ${error.message}`);
       // Graceful fallback on API error

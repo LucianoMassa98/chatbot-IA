@@ -1,4 +1,6 @@
-const { Order, Payment, Product, Subscription, User } = require('../models');
+const {
+  Order, Payment, Subscription, User,
+} = require('../models');
 const logger = require('../config/logger');
 const AppError = require('../utils/AppError');
 const mercadoPagoService = require('./mercadoPagoService');
@@ -183,7 +185,7 @@ class OrderService {
       const deliveryInfo = await this.calculateNextDeliveryTime();
       await order.update({
         status: 'paid',
-        estimatedDelivery: deliveryInfo.date
+        estimatedDelivery: deliveryInfo.date,
       });
       try {
         await notificationService.sendPaymentConfirmed(order.user, order, deliveryInfo);
@@ -230,7 +232,7 @@ class OrderService {
   async calculateNextDeliveryTime(fromDate = new Date()) {
     const { OperatingHours } = require('../models');
     const operatingHours = await OperatingHours.findAll({
-      where: { isActive: true }
+      where: { isActive: true },
     });
 
     if (!operatingHours || operatingHours.length === 0) {
@@ -241,18 +243,18 @@ class OrderService {
       return {
         date: fallbackDate,
         startTime: '10:00',
-        endTime: '17:00'
+        endTime: '17:00',
       };
     }
 
     const hoursMap = {};
-    operatingHours.forEach(h => {
+    operatingHours.forEach((h) => {
       hoursMap[h.dayOfWeek] = h;
     });
 
     const candidate = new Date(fromDate);
     const targetTimezone = 'America/Argentina/Buenos_Aires';
-    
+
     const getLocalParts = (date) => {
       const options = {
         timeZone: targetTimezone,
@@ -262,22 +264,22 @@ class OrderService {
         hour: 'numeric',
         minute: 'numeric',
         second: 'numeric',
-        hour12: false
+        hour12: false,
       };
       const formatter = new Intl.DateTimeFormat('en-US', options);
       const parts = formatter.formatToParts(date);
       const partValues = {};
-      parts.forEach(p => {
+      parts.forEach((p) => {
         partValues[p.type] = p.value;
       });
-      
+
       return new Date(
         parseInt(partValues.year, 10),
         parseInt(partValues.month, 10) - 1,
         parseInt(partValues.day, 10),
         parseInt(partValues.hour, 10),
         parseInt(partValues.minute, 10),
-        parseInt(partValues.second, 10)
+        parseInt(partValues.second, 10),
       );
     };
 
@@ -289,10 +291,10 @@ class OrderService {
       if (activeHours) {
         const startTimeStr = activeHours.deliveryStartTime || '10:00:00';
         const endTimeStr = activeHours.deliveryEndTime || '17:00:00';
-        
+
         const startTimeParts = startTimeStr.split(':');
         const endTimeParts = endTimeStr.split(':');
-        
+
         const startHour = parseInt(startTimeParts[0], 10);
         const startMin = parseInt(startTimeParts[1], 10);
         const endHour = parseInt(endTimeParts[0], 10);
@@ -312,7 +314,7 @@ class OrderService {
             return {
               date: utcDeliveryTime,
               startTime: startTimeStr.substring(0, 5),
-              endTime: endTimeStr.substring(0, 5)
+              endTime: endTimeStr.substring(0, 5),
             };
           }
         } else {
@@ -324,7 +326,7 @@ class OrderService {
           return {
             date: utcDeliveryTime,
             startTime: startTimeStr.substring(0, 5),
-            endTime: endTimeStr.substring(0, 5)
+            endTime: endTimeStr.substring(0, 5),
           };
         }
       }
@@ -338,7 +340,7 @@ class OrderService {
     return {
       date: fallbackDate,
       startTime: '10:00',
-      endTime: '17:00'
+      endTime: '17:00',
     };
   }
 

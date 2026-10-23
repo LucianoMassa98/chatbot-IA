@@ -23,9 +23,9 @@ class MetaService {
   normalizePhone(phone) {
     const str = String(phone).replace(/\D/g, '');
     if (/^549\d{10}$/.test(str)) {
-      const withoutNine = '54' + str.slice(3);
+      const withoutNine = `54${str.slice(3)}`;
       const localStart = withoutNine.length - 7;
-      const normalized = withoutNine.slice(0, localStart) + '15' + withoutNine.slice(localStart);
+      const normalized = `${withoutNine.slice(0, localStart)}15${withoutNine.slice(localStart)}`;
       logger.info(`Phone normalized (AR): ${str} → ${normalized}`);
       return normalized;
     }
@@ -120,7 +120,7 @@ class MetaService {
       logger.warn(`Channel "${channel}" is not supported. Only WhatsApp is active.`);
       throw new AppError(`Canal no soportado: ${channel}`, 400);
     }
-    
+
     const phoneNumberId = additionalParams.phoneNumberId || env.META_PHONE_NUMBER_ID;
 
     if (additionalParams.interactive) {

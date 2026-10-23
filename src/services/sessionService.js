@@ -1,4 +1,4 @@
-const { Session, User } = require('../models');
+const { Session } = require('../models');
 const logger = require('../config/logger');
 const env = require('../config/env');
 const AppError = require('../utils/AppError');
@@ -18,7 +18,7 @@ class SessionService {
 
       if (!session) {
         session = await Session.create({
-          userId: userId,
+          userId,
           currentFlow: 'idle',
           flowStep: 0,
           context: {},
@@ -48,7 +48,7 @@ class SessionService {
 
       await session.update({
         currentFlow: flowName,
-        flowStep: flowStep,
+        flowStep,
         context: {
           ...session.context,
           ...context,

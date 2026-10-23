@@ -18,14 +18,14 @@ const pedidoFlow = {
      * Step 0: Consultar pedidos activos
      */
     0: async (userMessage, sessionContext) => {
-      const userId = sessionContext.userId;
+      const { userId } = sessionContext;
       const orders = await orderService.getOrdersByUser(userId);
 
       if (!orders.length) {
         return {
           response:
-            '📋 No tenés pedidos registrados todavía.\n\n' +
-            '¿Querés hacer una compra? Respondé *COMPRAR* o elegí del menú principal.',
+            '📋 No tenés pedidos registrados todavía.\n\n'
+            + '¿Querés hacer una compra? Respondé *COMPRAR* o elegí del menú principal.',
           nextStep: null,
           context: {},
           shouldResetFlow: true,
@@ -59,8 +59,8 @@ const pedidoFlow = {
 
       return {
         response:
-          `📋 *Tus pedidos recientes:*\n\n${orderList}\n\n` +
-          `¿Querés más información de alguno? Respondé con el número o escribí *MENU* para volver.`,
+          `📋 *Tus pedidos recientes:*\n\n${orderList}\n\n`
+          + '¿Querés más información de alguno? Respondé con el número o escribí *MENU* para volver.',
         nextStep: 1,
         context: { orderIds: recent.map((o) => o.id) },
       };
@@ -117,16 +117,15 @@ const pedidoFlow = {
       };
 
       const productName = order.product?.name || order.subscription?.name || 'Pedido';
-      const detail =
-        `📦 *Detalle del pedido:*\n\n` +
-        `Producto: ${productName}\n` +
-        `Cantidad: ${order.quantity} maple(s)\n` +
-        `Total: $${Number(order.total).toLocaleString('es-AR')}\n` +
-        `Estado: ${statusLabel[order.status] || order.status}\n` +
-        `Dirección: ${order.deliveryAddress || 'No especificada'}\n` +
-        (order.estimatedDelivery ? `Entrega estimada: ${new Date(order.estimatedDelivery).toLocaleString('es-AR')}\n` : '') +
-        (order.notes ? `Nota: ${order.notes}\n` : '') +
-        `\nFecha del pedido: ${new Date(order.createdAt).toLocaleDateString('es-AR')}`;
+      const detail = '📦 *Detalle del pedido:*\n\n'
+        + `Producto: ${productName}\n`
+        + `Cantidad: ${order.quantity} maple(s)\n`
+        + `Total: $${Number(order.total).toLocaleString('es-AR')}\n`
+        + `Estado: ${statusLabel[order.status] || order.status}\n`
+        + `Dirección: ${order.deliveryAddress || 'No especificada'}\n${
+          order.estimatedDelivery ? `Entrega estimada: ${new Date(order.estimatedDelivery).toLocaleString('es-AR')}\n` : ''
+        }${order.notes ? `Nota: ${order.notes}\n` : ''
+        }\nFecha del pedido: ${new Date(order.createdAt).toLocaleDateString('es-AR')}`;
 
       return {
         response: detail,

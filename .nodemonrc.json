@@ -1,7 +1,7 @@
 {
   "watch": ["src"],
   "ext": "js",
-  "ignore": ["node_modules", "logs"],
+  "ignore": ["node_modules", "logs", "sessions", "sessions/**", "auth_info_baileys"],
   "exec": "node",
   "script": "src/server.js",
   "env": {

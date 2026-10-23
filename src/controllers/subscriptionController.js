@@ -1,5 +1,7 @@
-const { UserSubscription, Subscription, User, Order } = require('../models');
 const { Op } = require('sequelize');
+const {
+  UserSubscription, Subscription, User, Order,
+} = require('../models');
 const logger = require('../config/logger');
 const AppError = require('../utils/AppError');
 const subscriptionLifecycleService = require('../services/subscriptionLifecycleService');
@@ -69,10 +71,10 @@ const subscriptionController = {
       const deliveryOrderIds = userSub.metadata?.deliveryOrderIds || [];
       const deliveryOrders = deliveryOrderIds.length
         ? await Order.findAll({
-            where: { id: { [Op.in]: deliveryOrderIds } },
-            attributes: ['id', 'status', 'quantity', 'estimatedDelivery', 'deliveredAt', 'createdAt'],
-            order: [['created_at', 'DESC']],
-          })
+          where: { id: { [Op.in]: deliveryOrderIds } },
+          attributes: ['id', 'status', 'quantity', 'estimatedDelivery', 'deliveredAt', 'createdAt'],
+          order: [['created_at', 'DESC']],
+        })
         : [];
 
       return res.json({

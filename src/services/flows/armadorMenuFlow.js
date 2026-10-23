@@ -1,6 +1,6 @@
+const { Op } = require('sequelize');
 const logger = require('../../config/logger');
 const { User, Order, OrderAssignment } = require('../../models');
-const { Op } = require('sequelize');
 const assignmentService = require('../assignmentService');
 const notificationService = require('../notificationService');
 
@@ -45,15 +45,15 @@ const armadorMenuFlow = {
 
       return {
         response:
-          `🔧 *Panel de Armador*\n` +
-          `Hola, ${user.firstName || 'armador'}! 👋\n\n` +
-          `📊 *Resumen:*\n` +
-          `• Tareas activas: ${activeAssignments}\n\n` +
-          consolidado + `\n` +
-          `Seleccioná una opción:\n\n` +
-          `1️⃣ Confirmar armado de consolidado\n` +
-          `2️⃣ Ver mis tareas activas\n` +
-          `_Respondé con el número de la opción._`,
+          '🔧 *Panel de Armador*\n'
+          + `Hola, ${user.firstName || 'armador'}! 👋\n\n`
+          + '📊 *Resumen:*\n'
+          + `• Tareas activas: ${activeAssignments}\n\n${
+            consolidado}\n`
+          + 'Seleccioná una opción:\n\n'
+          + '1️⃣ Confirmar armado de consolidado\n'
+          + '2️⃣ Ver mis tareas activas\n'
+          + '_Respondé con el número de la opción._',
         nextStep: 1,
         context: {},
       };
@@ -73,8 +73,8 @@ const armadorMenuFlow = {
         if (!orders.length) {
           return {
             response:
-              '📦 No hay pedidos pendientes para armar en este momento.\n\n' +
-              '_Escribí *PANEL* para volver al menú de armador._',
+              '📦 No hay pedidos pendientes para armar en este momento.\n\n'
+              + '_Escribí *PANEL* para volver al menú de armador._',
             nextStep: 1,
             context: {},
           };
@@ -82,10 +82,10 @@ const armadorMenuFlow = {
 
         return {
           response:
-            `📦 *Consolidado a confirmar:*\n\n` +
-            consolidado + `\n` +
-            `¿Confirmás que el consolidado está armado?\n` +
-            `Respondé *SÍ* para confirmar o *NO* para cancelar.`,
+            `📦 *Consolidado a confirmar:*\n\n${
+              consolidado}\n`
+            + '¿Confirmás que el consolidado está armado?\n'
+            + 'Respondé *SÍ* para confirmar o *NO* para cancelar.',
           nextStep: 4,
           context: { pendingOrderCount: orders.length },
         };
@@ -99,9 +99,9 @@ const armadorMenuFlow = {
         if (!armadorAssignments.length) {
           return {
             response:
-              '📋 No tenés tareas de armado asignadas en este momento.\n\n' +
-              '¿Querés tomar un pedido? Respondé *1*.\n' +
-              '_Escribí *PANEL* para volver al menú de armador._',
+              '📋 No tenés tareas de armado asignadas en este momento.\n\n'
+              + '¿Querés tomar un pedido? Respondé *1*.\n'
+              + '_Escribí *PANEL* para volver al menú de armador._',
             nextStep: 1,
             context: {},
           };
@@ -110,21 +110,21 @@ const armadorMenuFlow = {
         const statusLabel = { assigned: '📌 Asignado', in_progress: '⏳ En progreso', completed: '✅ Completado' };
 
         const list = armadorAssignments.map((a, i) => {
-          const order = a.order;
+          const { order } = a;
           const productName = order?.product?.name || order?.subscription?.name || 'Pedido';
           const customer = order?.user?.firstName || order?.user?.contact || 'N/A';
           return (
-            `${i + 1}. *${productName}* (x${order?.quantity || 1})\n` +
-            `   ${statusLabel[a.status] || a.status}\n` +
-            `   👤 ${customer}`
+            `${i + 1}. *${productName}* (x${order?.quantity || 1})\n`
+            + `   ${statusLabel[a.status] || a.status}\n`
+            + `   👤 ${customer}`
           );
         }).join('\n\n');
 
         return {
           response:
-            `📋 *Tus tareas de armado:*\n\n${list}\n\n` +
-            `Respondé con el *número* de la tarea para gestionarla.\n\n` +
-            `_Escribí *PANEL* para volver al menú de armador._`,
+            `📋 *Tus tareas de armado:*\n\n${list}\n\n`
+            + 'Respondé con el *número* de la tarea para gestionarla.\n\n'
+            + '_Escribí *PANEL* para volver al menú de armador._',
           nextStep: 2,
           context: {
             assignmentIds: armadorAssignments.map((a) => a.id),
@@ -159,8 +159,8 @@ const armadorMenuFlow = {
       // No reconocido
       return {
         response:
-          'No entendí tu selección. Respondé con un número del 1 al 3:\n\n' +
-          '1️⃣ Confirmar armado de consolidado\n2️⃣ Ver mis tareas\n3️⃣ Menú cliente',
+          'No entendí tu selección. Respondé con un número del 1 al 3:\n\n'
+          + '1️⃣ Confirmar armado de consolidado\n2️⃣ Ver mis tareas\n3️⃣ Menú cliente',
         nextStep: 1,
         context: {},
       };
@@ -173,7 +173,9 @@ const armadorMenuFlow = {
       const msg = userMessage.toLowerCase().trim();
 
       if (msg.includes('panel')) {
-        return { response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'armador_menu' };
+        return {
+          response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'armador_menu',
+        };
       }
 
       const selection = parseInt(msg, 10);
@@ -213,7 +215,7 @@ const armadorMenuFlow = {
         };
       }
 
-      const order = assignment.order;
+      const { order } = assignment;
       const productName = order?.product?.name || order?.subscription?.name || 'Pedido';
       const customer = order?.user?.firstName || order?.user?.contact || 'N/A';
 
@@ -224,12 +226,12 @@ const armadorMenuFlow = {
 
       return {
         response:
-          `📋 *Detalle de tarea:*\n\n` +
-          `Pedido: *${productName}* (x${order?.quantity || 1})\n` +
-          `Estado: ${order?.status}\n` +
-          `👤 Cliente: ${customer}` +
-          actions +
-          `\n\n_Escribí *PANEL* para volver al menú de armador._`,
+          '📋 *Detalle de tarea:*\n\n'
+          + `Pedido: *${productName}* (x${order?.quantity || 1})\n`
+          + `Estado: ${order?.status}\n`
+          + `👤 Cliente: ${customer}${
+            actions
+          }\n\n_Escribí *PANEL* para volver al menú de armador._`,
         nextStep: 3,
         context: {
           selectedAssignmentId: assignmentId,
@@ -247,7 +249,9 @@ const armadorMenuFlow = {
       const { selectedOrderId, orderStatus } = sessionContext.context;
 
       if (msg.includes('panel')) {
-        return { response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'armador_menu' };
+        return {
+          response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'armador_menu',
+        };
       }
 
       // LISTO — Completar armado
@@ -257,10 +261,10 @@ const armadorMenuFlow = {
             await assignmentService.completeArmado(selectedOrderId, sessionContext.userId);
             return {
               response:
-                '✅ *¡Pedido marcado como armado!*\n\n' +
-                'El pedido queda listo para que un repartidor lo retire.\n' +
-                'El cliente fue notificado. 📦\n\n' +
-                '_Escribí *PANEL* para volver al menú de armador._',
+                '✅ *¡Pedido marcado como armado!*\n\n'
+                + 'El pedido queda listo para que un repartidor lo retire.\n'
+                + 'El cliente fue notificado. 📦\n\n'
+                + '_Escribí *PANEL* para volver al menú de armador._',
               nextStep: null,
               context: {},
               shouldResetFlow: true,
@@ -285,9 +289,9 @@ const armadorMenuFlow = {
       // No reconocido
       return {
         response:
-          'No entendí tu respuesta. Opciones disponibles:\n' +
-          '• *LISTO* — Marcar como armado\n' +
-          '• *PANEL* — Volver al menú de armador',
+          'No entendí tu respuesta. Opciones disponibles:\n'
+          + '• *LISTO* — Marcar como armado\n'
+          + '• *PANEL* — Volver al menú de armador',
         nextStep: 3,
         context: sessionContext.context,
       };
@@ -300,7 +304,9 @@ const armadorMenuFlow = {
       const msg = userMessage.toLowerCase().trim();
 
       if (msg.includes('panel')) {
-        return { response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'armador_menu' };
+        return {
+          response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'armador_menu',
+        };
       }
 
       if (msg.includes('no') || msg.includes('cancelar')) {
@@ -325,11 +331,11 @@ const armadorMenuFlow = {
         const processedOrders = await assignmentService.completeConsolidado(sessionContext.userId);
         return {
           response:
-            `✅ *¡Consolidado confirmado!*\n\n` +
-            `Se procesaron ${processedOrders.length} pedido${processedOrders.length > 1 ? 's' : ''}.\n` +
-            `Todos los pedidos quedaron listos para que un repartidor los retire. 📦\n` +
-            `Los clientes y repartidores fueron notificados.\n\n` +
-            `_Escribí *PANEL* para volver al menú de armador._`,
+            '✅ *¡Consolidado confirmado!*\n\n'
+            + `Se procesaron ${processedOrders.length} pedido${processedOrders.length > 1 ? 's' : ''}.\n`
+            + 'Todos los pedidos quedaron listos para que un repartidor los retire. 📦\n'
+            + 'Los clientes y repartidores fueron notificados.\n\n'
+            + '_Escribí *PANEL* para volver al menú de armador._',
           nextStep: null,
           context: {},
           shouldResetFlow: true,

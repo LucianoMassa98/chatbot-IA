@@ -1,11 +1,14 @@
-const { User, Conversation, Message, Session } = require('../models');
+const {
+  User, Conversation, Message,
+} = require('../models');
 const logger = require('../config/logger');
 const AppError = require('../utils/AppError');
 const sessionService = require('./sessionService');
 const flowService = require('./flowService');
-const aiService = require('./aiService');
-const metaService = require('./metaService');
-const { normalizeMessage } = require('../utils/messageNormalizer');
+// aiService and metaService managed via whatsappGateway
+
+const whatsappGateway = require('./whatsappGateway');
+
 // registroClienteFlow native flow disabled (Meta #139000 integrity error)
 // New users receive a text welcome message and are routed to menuFlow instead.
 
@@ -21,7 +24,9 @@ class MessageService {
    */
   async processIncomingMessage(normalizedMessage) {
     try {
-      const { userId, text, channel, messageType, externalId, metadata } = normalizedMessage;
+      const {
+        userId, text, channel, messageType, externalId, metadata,
+      } = normalizedMessage;
 
       logger.info(`Processing message from user ${userId}`, { channel, messageType });
 
@@ -36,8 +41,8 @@ class MessageService {
         conversationId: conversation.id,
         direction: 'in',
         content: text,
-        messageType: messageType,
-        externalId: externalId,
+        messageType,
+        externalId,
         metadata,
       });
 
@@ -53,17 +58,16 @@ class MessageService {
         const env = require('../config/env');
         const phoneNumberId = (metadata && metadata.phoneNumberId) || env.META_PHONE_NUMBER_ID;
 
-        const welcomeText =
-          `👋 ¡Hola! Bienvenido/a a *Yemas del Sol* 🐔🥚\n\n` +
-          `Te entregamos en tu domicilio.\n\n` +
-          `¿En qué puedo ayudarte hoy?`;
+        const welcomeText = '👋 ¡Hola! Bienvenido/a a *Yemas del Sol* 🐔🥚\n\n'
+          + 'Te entregamos en tu domicilio.\n\n'
+          + '¿En qué puedo ayudarte hoy?';
 
         let outgoingMessageId = null;
         try {
-          const sendResult = await metaService.sendWhatsAppMessage(
-            phoneNumberId,
+          const sendResult = await whatsappGateway.sendMessage(
             userId,
             welcomeText,
+            { phoneNumberId },
           );
           outgoingMessageId = sendResult?.messages?.[0]?.id || null;
 
@@ -137,7 +141,6 @@ class MessageService {
         response: textToSend,
         messageId: outgoingMessageId,
       };
-
     } catch (error) {
       logger.error(`Failed to process incoming message: ${error.message}`);
       throw error;
@@ -186,14 +189,14 @@ class MessageService {
     try {
       let conversation = await Conversation.findOne({
         where: {
-          userId: userId,
+          userId,
           status: 'active',
         },
       });
 
       if (!conversation) {
         conversation = await Conversation.create({
-          userId: userId,
+          userId,
           status: 'active',
           metadata: {
             startedAt: new Date().toISOString(),
@@ -284,7 +287,6 @@ class MessageService {
       const newContext = await sessionService.getSessionContext(user.id);
       newContext.userId = user.id;
       return this.executeCurrentFlow(user.id, 'menu', userMessage, newContext);
-
     } catch (error) {
       logger.error(`Failed to generate response: ${error.message}`);
       return {
@@ -340,12 +342,11 @@ class MessageService {
   }
 
   /**
-   * Send message to user (through Meta API)
+   * Send message to user (through active WhatsApp Gateway: Baileys or Meta)
    */
   async sendMessage(user, messageText, additionalParams = {}) {
     try {
-      const result = await metaService.sendMessage(
-        user.channel,
+      const result = await whatsappGateway.sendMessage(
         user.contact,
         messageText,
         additionalParams,
@@ -382,7 +383,7 @@ class MessageService {
   async getConversationHistory(userId, limit = 50) {
     try {
       const conversation = await Conversation.findOne({
-        where: { userId: userId },
+        where: { userId },
         include: {
           association: 'messages',
           limit,
@@ -408,7 +409,7 @@ class MessageService {
     try {
       const conversation = await Conversation.findOne({
         where: {
-          userId: userId,
+          userId,
           status: 'active',
         },
       });

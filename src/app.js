@@ -122,11 +122,26 @@ const initializeFlows = () => {
 /**
  * Initialize database
  */
-const initializeDatabase = async () => {
-  try {
-    await models.sequelize.authenticate();
-    logger.info('Database connection established successfully');
+const initializeDatabase = async (maxAttempts = 3) => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await models.sequelize.authenticate();
+      logger.info('Database connection established successfully');
+      break;
+    } catch (authErr) {
+      logger.warn(`Database connection attempt ${attempt}/${maxAttempts} failed: ${authErr.message}`);
+      if (attempt < maxAttempts) {
+        // Wait 2.5 seconds before retrying
+        await new Promise((res) => {
+          setTimeout(res, 2500);
+        });
+      } else {
+        throw authErr;
+      }
+    }
+  }
 
+  try {
     // Ensure the ENUM type includes all Yemas del Sol flow values
     const yemaFlows = ['registro_cliente', 'menu', 'compra', 'suscripcion', 'pedidos', 'cambiar_direccion', 'reprogramar', 'armador_menu', 'repartidor_menu'];
     for (const val of yemaFlows) {

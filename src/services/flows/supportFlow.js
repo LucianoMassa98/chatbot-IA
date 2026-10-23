@@ -22,8 +22,8 @@ const supportFlow = {
 
       return {
         response:
-          '👋 Entendido. Un operador estará disponible para atenderte a la brevedad.\n\n' +
-          'Por favor indicanos brevemente el motivo de tu consulta para que puedan ayudarte mejor:',
+          '👋 Entendido. Un operador estará disponible para atenderte a la brevedad.\n\n'
+          + 'Por favor indicanos brevemente el motivo de tu consulta para que puedan ayudarte mejor:',
         nextStep: 1,
         context: { requestedOperator: true },
       };
@@ -39,9 +39,9 @@ const supportFlow = {
 
       return {
         response:
-          '✅ Recibimos tu consulta. Un operador se comunicará con vos por este mismo chat.\n\n' +
-          '⏰ Nuestro horario de atención es de lunes a viernes de 8:00 a 18:00 hs.\n\n' +
-          'Gracias por tu paciencia. 🙏',
+          '✅ Recibimos tu consulta. Un operador se comunicará con vos por este mismo chat.\n\n'
+          + '⏰ Nuestro horario de atención es de lunes a viernes de 8:00 a 18:00 hs.\n\n'
+          + 'Gracias por tu paciencia. 🙏',
         nextStep: null,
         context: {
           operatorReason: userMessage,

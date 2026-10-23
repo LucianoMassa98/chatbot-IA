@@ -1,7 +1,9 @@
 const { Op } = require('sequelize');
 const logger = require('../config/logger');
 const AppError = require('../utils/AppError');
-const { UserSubscription, Subscription, User, Order, Payment } = require('../models');
+const {
+  UserSubscription, Subscription, User, Order, Payment,
+} = require('../models');
 const mercadoPagoService = require('./mercadoPagoService');
 const notificationService = require('./notificationService');
 

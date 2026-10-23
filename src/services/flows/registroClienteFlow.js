@@ -75,7 +75,6 @@ async function sendRegistroClienteFlow(phoneNumberId, recipientPhone) {
   }
 }
 
-
 /**
  * Registro Cliente Flow Handler
  * Se activa automáticamente cuando el usuario es nuevo
@@ -104,19 +103,17 @@ const registroClienteFlow = {
      * Step 0: Mensaje de bienvenida con el flow nativo
      * Si el canal no es WhatsApp, usa texto plano
      */
-    0: async (userMessage, sessionContext) => {
-      return {
-        response:
-          '¡Hola! 👋 Bienvenido/a. Somos nuevos juntos y nos gustaría conocerte mejor.\n\n' +
-          'Por favor, completá el formulario de registro que te enviamos para poder brindarte una atención personalizada.',
-        nextStep: null,
-        context: {
-          isNewUser: true,
-          registrationSent: true,
-        },
-        shouldResetFlow: true,
-      };
-    },
+    0: async (userMessage, sessionContext) => ({
+      response:
+          '¡Hola! 👋 Bienvenido/a. Somos nuevos juntos y nos gustaría conocerte mejor.\n\n'
+          + 'Por favor, completá el formulario de registro que te enviamos para poder brindarte una atención personalizada.',
+      nextStep: null,
+      context: {
+        isNewUser: true,
+        registrationSent: true,
+      },
+      shouldResetFlow: true,
+    }),
   },
 };
 

@@ -13,7 +13,7 @@ const handleMercadoPagoWebhook = async (req, res) => {
 
   try {
     const mercadoPagoService = require('../services/mercadoPagoService');
-    const body = req.body;
+    const { body } = req;
 
     logger.info('Mercado Pago webhook received', { type: body.type, id: body.data?.id });
 
@@ -23,7 +23,9 @@ const handleMercadoPagoWebhook = async (req, res) => {
       return; // non-payment notification, nothing to do
     }
 
-    const { orderId, mpPaymentId, status, rawData } = result;
+    const {
+      orderId, mpPaymentId, status, rawData,
+    } = result;
 
     if (!orderId) {
       logger.warn('MP webhook: no external_reference (orderId) found in payment data');

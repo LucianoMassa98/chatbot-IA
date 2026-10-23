@@ -21,7 +21,7 @@ const normalizeMessage = (entry, messagingProduct) => {
       if (entry.messages[0].type === 'text') {
         message.text = entry.messages[0].text.body;
       } else if (entry.messages[0].type === 'interactive') {
-        const interactive = entry.messages[0].interactive;
+        const { interactive } = entry.messages[0];
         if (interactive) {
           if (interactive.type === 'button_reply' && interactive.button_reply) {
             message.text = interactive.button_reply.id || interactive.button_reply.title;
@@ -41,7 +41,7 @@ const normalizeMessage = (entry, messagingProduct) => {
           longitude: loc.longitude,
           name: loc.name,
           address: loc.address,
-          googleMapsUrl: `https://maps.google.com/?q=${loc.latitude},${loc.longitude}`
+          googleMapsUrl: `https://maps.google.com/?q=${loc.latitude},${loc.longitude}`,
         };
       } else {
         const allowedTypes = ['text', 'image', 'document', 'audio', 'video'];
@@ -59,7 +59,6 @@ const normalizeMessage = (entry, messagingProduct) => {
       if (entry.metadata && entry.metadata.phone_number_id) {
         message.metadata.phoneNumberId = entry.metadata.phone_number_id;
       }
-
     } else if (messagingProduct === 'instagram') {
       message.channel = 'instagram';
       message.userId = entry.messaging[0].sender.id;

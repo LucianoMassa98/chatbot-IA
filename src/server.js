@@ -24,15 +24,23 @@ const startServer = async () => {
       logger.info(`Health check: http://localhost:${env.PORT}/health`);
     });
 
+    // Auto-reconnect WhatsApp Web if an active session exists
+    const baileysService = require('./services/baileysService');
+    if (baileysService.getStatus().hasSavedSession) {
+      logger.info('Saved WhatsApp Web session found. Reconnecting in background...');
+      baileysService.startSession(false).catch((err) => {
+        logger.warn(`WhatsApp Web auto-reconnect failed: ${err.message}`);
+      });
+    }
+
     /**
-     * Handle unhandled promise rejections
+     * Handle unhandled promise rejections gracefully
      */
     process.on('unhandledRejection', (err) => {
-      logger.error(`Unhandled Rejection: ${err.message}`);
-      // Close server & exit process
-      server.close(() => {
-        process.exit(1);
-      });
+      logger.error(`Unhandled Rejection: ${err?.message || err}`);
+      if (err?.stack) {
+        logger.debug(err.stack);
+      }
     });
 
     /**

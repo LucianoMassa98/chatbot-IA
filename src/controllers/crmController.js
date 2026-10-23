@@ -1,7 +1,9 @@
 const { OAuth2Client } = require('google-auth-library');
 const logger = require('../config/logger');
 const env = require('../config/env');
-const { User, Product, Subscription, Order, Payment, DeliveryZone, OperatingHours } = require('../models');
+const {
+  User, Product, Subscription, Order, Payment, DeliveryZone, OperatingHours,
+} = require('../models');
 const orderService = require('../services/orderService');
 
 // ─────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ const googleAuth = async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-    const email = payload.email;
+    const { email } = payload;
 
     const { Op } = require('sequelize');
     const matchedUser = await User.findOne({
@@ -252,7 +254,9 @@ const getOperators = async (req, res) => {
 
 const createOperator = async (req, res) => {
   try {
-    const { contact, firstName, lastName, password } = req.body;
+    const {
+      contact, firstName, lastName, password,
+    } = req.body;
     const operator = await User.create({
       contact,
       channel: 'whatsapp',
@@ -282,12 +286,20 @@ const getOperatingHours = async (req, res) => {
 
 const updateOperatingHours = async (req, res) => {
   try {
-    const { dayOfWeek, openTime, closeTime, deliveryStartTime, deliveryEndTime, isActive } = req.body;
+    const {
+      dayOfWeek, openTime, closeTime, deliveryStartTime, deliveryEndTime, isActive,
+    } = req.body;
     const [record, created] = await OperatingHours.findOrCreate({
       where: { dayOfWeek },
-      defaults: { dayOfWeek, openTime, closeTime, deliveryStartTime, deliveryEndTime, isActive },
+      defaults: {
+        dayOfWeek, openTime, closeTime, deliveryStartTime, deliveryEndTime, isActive,
+      },
     });
-    if (!created) await record.update({ openTime, closeTime, deliveryStartTime, deliveryEndTime, isActive });
+    if (!created) {
+      await record.update({
+        openTime, closeTime, deliveryStartTime, deliveryEndTime, isActive,
+      });
+    }
     res.json({ success: true, data: record });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -320,7 +332,6 @@ const updateDeliveryZone = async (req, res) => {
     res.json({ success: true, data: zone });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
-
   }
 };
 
@@ -360,12 +371,25 @@ const getReportSummary = async (req, res) => {
 
 module.exports = {
   googleAuth,
-  getProducts, createProduct, updateProduct, deleteProduct,
-  getSubscriptions, createSubscription, updateSubscription,
-  getOrders, getOrder, updateOrderStatus, getTodayDeliveries,
-  getClients, getClient,
-  getOperators, createOperator,
-  getOperatingHours, updateOperatingHours,
-  getDeliveryZones, createDeliveryZone, updateDeliveryZone,
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getSubscriptions,
+  createSubscription,
+  updateSubscription,
+  getOrders,
+  getOrder,
+  updateOrderStatus,
+  getTodayDeliveries,
+  getClients,
+  getClient,
+  getOperators,
+  createOperator,
+  getOperatingHours,
+  updateOperatingHours,
+  getDeliveryZones,
+  createDeliveryZone,
+  updateDeliveryZone,
   getReportSummary,
 };

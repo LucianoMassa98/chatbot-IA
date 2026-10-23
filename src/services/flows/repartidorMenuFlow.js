@@ -1,6 +1,6 @@
+const { Op } = require('sequelize');
 const logger = require('../../config/logger');
 const { User, Order, OrderAssignment } = require('../../models');
-const { Op } = require('sequelize');
 const assignmentService = require('../assignmentService');
 
 /**
@@ -44,15 +44,15 @@ const repartidorMenuFlow = {
 
       return {
         response:
-          `🚗 *Panel de Repartidor*\n` +
-          `Hola, ${user.firstName || 'repartidor'}! 👋\n\n` +
-          `📊 *Resumen:*\n` +
-          `• Entregas activas: ${activeAssignments}\n` +
-          `• Pedidos listos para entregar: ${readyOrders.length}\n\n` +
-          `Seleccioná una opción:\n\n` +
-          `1️⃣ Ver entregas pendientes\n` +
-          `2️⃣ Ver mis entregas activas\n\n` +
-          `_Respondé con el número de la opción._`,
+          '🚗 *Panel de Repartidor*\n'
+          + `Hola, ${user.firstName || 'repartidor'}! 👋\n\n`
+          + '📊 *Resumen:*\n'
+          + `• Entregas activas: ${activeAssignments}\n`
+          + `• Pedidos listos para entregar: ${readyOrders.length}\n\n`
+          + 'Seleccioná una opción:\n\n'
+          + '1️⃣ Ver entregas pendientes\n'
+          + '2️⃣ Ver mis entregas activas\n\n'
+          + '_Respondé con el número de la opción._',
         nextStep: 1,
         context: {},
       };
@@ -71,8 +71,8 @@ const repartidorMenuFlow = {
         if (!orders.length) {
           return {
             response:
-              '🚗 No hay pedidos listos para entregar en este momento.\n\n' +
-              '_Escribí *PANEL* para volver al menú de repartidor._',
+              '🚗 No hay pedidos listos para entregar en este momento.\n\n'
+              + '_Escribí *PANEL* para volver al menú de repartidor._',
             nextStep: 1,
             context: {},
           };
@@ -82,15 +82,15 @@ const repartidorMenuFlow = {
           const productName = o.product?.name || o.subscription?.name || 'Pedido';
           const customer = o.user?.firstName || o.user?.contact || 'N/A';
           const address = o.deliveryAddress || o.user?.address || 'Sin dirección';
-          const mapUrl = o.user?.location?.googleMapsUrl ? ` 📎` : '';
+          const mapUrl = o.user?.location?.googleMapsUrl ? ' 📎' : '';
           return `${i + 1}. *${productName}* (x${o.quantity}) — 👤 ${customer}\n   📍 ${address}${mapUrl}`;
         }).join('\n\n');
 
         return {
           response:
-            `🚗 *Pedidos disponibles para entregar:*\n\n${list}\n\n` +
-            `Respondé con el *número* del pedido para tomarlo.\n\n` +
-            `_Escribí *PANEL* para volver._`,
+            `🚗 *Pedidos disponibles para entregar:*\n\n${list}\n\n`
+            + 'Respondé con el *número* del pedido para tomarlo.\n\n'
+            + '_Escribí *PANEL* para volver._',
           nextStep: 4,
           context: { pendingOrderIds: orders.map((o) => o.id) },
         };
@@ -104,9 +104,9 @@ const repartidorMenuFlow = {
         if (!repartidorAssignments.length) {
           return {
             response:
-              '📋 No tenés entregas asignadas en este momento.\n\n' +
-              '¿Querés tomar una entrega? Respondé *1*.\n' +
-              '_Escribí *PANEL* para volver al menú de repartidor._',
+              '📋 No tenés entregas asignadas en este momento.\n\n'
+              + '¿Querés tomar una entrega? Respondé *1*.\n'
+              + '_Escribí *PANEL* para volver al menú de repartidor._',
             nextStep: 1,
             context: {},
           };
@@ -115,7 +115,7 @@ const repartidorMenuFlow = {
         const statusLabel = { assigned: '📌 Asignado', in_progress: '⏳ En progreso', completed: '✅ Completado' };
 
         const list = repartidorAssignments.map((a, i) => {
-          const order = a.order;
+          const { order } = a;
           const productName = order?.product?.name || order?.subscription?.name || 'Pedido';
           const customer = order?.user?.firstName || order?.user?.contact || 'N/A';
           const address = order?.deliveryAddress || order?.user?.address || 'Sin dirección';
@@ -123,18 +123,18 @@ const repartidorMenuFlow = {
             ? `\n   📎 ${order.user.location.googleMapsUrl}`
             : '';
           return (
-            `${i + 1}. *${productName}* (x${order?.quantity || 1})\n` +
-            `   ${statusLabel[a.status] || a.status}\n` +
-            `   👤 ${customer}\n` +
-            `   📍 ${address}${mapUrl}`
+            `${i + 1}. *${productName}* (x${order?.quantity || 1})\n`
+            + `   ${statusLabel[a.status] || a.status}\n`
+            + `   👤 ${customer}\n`
+            + `   📍 ${address}${mapUrl}`
           );
         }).join('\n\n');
 
         return {
           response:
-            `📋 *Tus entregas activas:*\n\n${list}\n\n` +
-            `Respondé con el *número* de la entrega para gestionarla.\n\n` +
-            `_Escribí *PANEL* para volver al menú de repartidor._`,
+            `📋 *Tus entregas activas:*\n\n${list}\n\n`
+            + 'Respondé con el *número* de la entrega para gestionarla.\n\n'
+            + '_Escribí *PANEL* para volver al menú de repartidor._',
           nextStep: 2,
           context: {
             assignmentIds: repartidorAssignments.map((a) => a.id),
@@ -169,8 +169,8 @@ const repartidorMenuFlow = {
       // No reconocido
       return {
         response:
-          'No entendí tu selección. Respondé con un número del 1 al 3:\n\n' +
-          '1️⃣ Ver entregas pendientes\n2️⃣ Mis entregas activas\n3️⃣ Menú cliente',
+          'No entendí tu selección. Respondé con un número del 1 al 3:\n\n'
+          + '1️⃣ Ver entregas pendientes\n2️⃣ Mis entregas activas\n3️⃣ Menú cliente',
         nextStep: 1,
         context: {},
       };
@@ -183,7 +183,9 @@ const repartidorMenuFlow = {
       const msg = userMessage.toLowerCase().trim();
 
       if (msg.includes('panel')) {
-        return { response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'repartidor_menu' };
+        return {
+          response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'repartidor_menu',
+        };
       }
 
       const selection = parseInt(msg, 10);
@@ -219,7 +221,7 @@ const repartidorMenuFlow = {
         };
       }
 
-      const order = assignment.order;
+      const { order } = assignment;
       const productName = order?.product?.name || order?.subscription?.name || 'Pedido';
       const customer = order?.user?.firstName || order?.user?.contact || 'N/A';
       const address = order?.deliveryAddress || order?.user?.address || 'Sin dirección';
@@ -237,13 +239,13 @@ const repartidorMenuFlow = {
 
       return {
         response:
-          `📋 *Detalle de entrega:*\n\n` +
-          `Pedido: *${productName}* (x${order?.quantity || 1})\n` +
-          `Estado: ${order?.status}\n` +
-          `👤 Cliente: ${customer}\n` +
-          `📍 Dirección: ${address}${mapUrl}${delivery}` +
-          actions +
-          `\n\n_Escribí *PANEL* para volver al menú de repartidor._`,
+          '📋 *Detalle de entrega:*\n\n'
+          + `Pedido: *${productName}* (x${order?.quantity || 1})\n`
+          + `Estado: ${order?.status}\n`
+          + `👤 Cliente: ${customer}\n`
+          + `📍 Dirección: ${address}${mapUrl}${delivery}${
+            actions
+          }\n\n_Escribí *PANEL* para volver al menú de repartidor._`,
         nextStep: 3,
         context: {
           selectedAssignmentId: assignmentId,
@@ -261,7 +263,9 @@ const repartidorMenuFlow = {
       const { selectedOrderId, orderStatus } = sessionContext.context;
 
       if (msg.includes('panel')) {
-        return { response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'repartidor_menu' };
+        return {
+          response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'repartidor_menu',
+        };
       }
 
       // ENTREGADO — Completar entrega
@@ -271,9 +275,9 @@ const repartidorMenuFlow = {
             await assignmentService.completeEntrega(selectedOrderId, sessionContext.userId);
             return {
               response:
-                '✅ *¡Entrega confirmada!*\n\n' +
-                'El cliente fue notificado. ¡Buen trabajo! 🎉\n\n' +
-                '_Escribí *PANEL* para volver al menú de repartidor._',
+                '✅ *¡Entrega confirmada!*\n\n'
+                + 'El cliente fue notificado. ¡Buen trabajo! 🎉\n\n'
+                + '_Escribí *PANEL* para volver al menú de repartidor._',
               nextStep: null,
               context: {},
               shouldResetFlow: true,
@@ -298,9 +302,9 @@ const repartidorMenuFlow = {
       // No reconocido
       return {
         response:
-          'No entendí tu respuesta. Opciones disponibles:\n' +
-          '• *ENTREGADO* — Confirmar entrega\n' +
-          '• *PANEL* — Volver al menú de repartidor',
+          'No entendí tu respuesta. Opciones disponibles:\n'
+          + '• *ENTREGADO* — Confirmar entrega\n'
+          + '• *PANEL* — Volver al menú de repartidor',
         nextStep: 3,
         context: sessionContext.context,
       };
@@ -313,7 +317,9 @@ const repartidorMenuFlow = {
       const msg = userMessage.toLowerCase().trim();
 
       if (msg.includes('panel')) {
-        return { response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'repartidor_menu' };
+        return {
+          response: null, nextStep: null, context: {}, shouldResetFlow: true, redirectFlow: 'repartidor_menu',
+        };
       }
 
       const selection = parseInt(msg, 10);
@@ -352,12 +358,12 @@ const repartidorMenuFlow = {
 
       return {
         response:
-          `📋 *Confirmar asignación:*\n\n` +
-          `Tarea: 🚗 Entregar\n` +
-          `Pedido: *${productName}* (x${order.quantity})\n` +
-          `👤 Cliente: ${customer}\n` +
-          `📍 ${address}\n\n` +
-          `¿Te asignás esta entrega? Respondé *SÍ* o *NO*.`,
+          '📋 *Confirmar asignación:*\n\n'
+          + 'Tarea: 🚗 Entregar\n'
+          + `Pedido: *${productName}* (x${order.quantity})\n`
+          + `👤 Cliente: ${customer}\n`
+          + `📍 ${address}\n\n`
+          + '¿Te asignás esta entrega? Respondé *SÍ* o *NO*.',
         nextStep: 5,
         context: { confirmOrderId: orderId },
       };
@@ -393,10 +399,10 @@ const repartidorMenuFlow = {
         await assignmentService.selfAssign(confirmOrderId, sessionContext.userId, 'repartidor');
         return {
           response:
-            `✅ *¡Entrega asignada!*\n\n` +
-            `Te asignaste la entrega.\n` +
-            `Podés verla en *Mis entregas* desde el panel.\n\n` +
-            `_Escribí *PANEL* para volver al menú de repartidor._`,
+            '✅ *¡Entrega asignada!*\n\n'
+            + 'Te asignaste la entrega.\n'
+            + 'Podés verla en *Mis entregas* desde el panel.\n\n'
+            + '_Escribí *PANEL* para volver al menú de repartidor._',
           nextStep: null,
           context: {},
           shouldResetFlow: true,

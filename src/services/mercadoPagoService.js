@@ -127,7 +127,9 @@ class MercadoPagoService {
 
       logger.info('MP webhook processed', { mpPaymentId, orderId, status });
 
-      return { orderId, mpPaymentId, status, rawData: paymentData };
+      return {
+        orderId, mpPaymentId, status, rawData: paymentData,
+      };
     } catch (error) {
       logger.error(`Failed to process MP webhook: ${error.message}`);
       throw error;

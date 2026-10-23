@@ -1,9 +1,9 @@
 const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
 const env = require('./env');
 
 // Create logs directory if it doesn't exist
-const fs = require('fs');
 const logsDir = path.dirname(env.LOG_FILE);
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
@@ -32,7 +32,9 @@ if (env.isDevelopment) {
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.printf(({ level, message, timestamp, ...meta }) => {
+        winston.format.printf(({
+          level, message, timestamp, ...meta
+        }) => {
           const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
           return `${timestamp} ${level}: ${message} ${metaStr}`;
         }),
